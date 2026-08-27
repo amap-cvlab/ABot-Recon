@@ -142,8 +142,7 @@ class ReleasedABotReconModel(torch.nn.Module):
         self,
         paths: list[Path],
         *,
-        output_local_points: bool,
-        output_world_points: bool,
+        output_points: bool,
         output_confidence: bool,
         dense_output_indices: list[int] | None = None,
         image_observer: Callable[[torch.Tensor], None] | None = None,
@@ -151,10 +150,8 @@ class ReleasedABotReconModel(torch.nn.Module):
         self.reset()
         self._image_observer = image_observer
         output_keys = ["camera_poses"]
-        if output_local_points or output_world_points:
-            output_keys.append("local_points")
-        if output_world_points:
-            output_keys.append("points")
+        if output_points:
+            output_keys.extend(("local_points", "points"))
         if output_confidence:
             output_keys.append("conf")
         autocast_enabled = (
@@ -185,9 +182,8 @@ class ReleasedABotReconModel(torch.nn.Module):
 
         result = {"camera_poses": frames_only(output["camera_poses"])}
         result["attention_backend"] = self.attention_backend
-        if output_local_points or output_world_points:
+        if output_points:
             result["local_points"] = frames_only(output.get("local_points"))
-        if output_world_points:
             result["world_points"] = frames_only(output.get("points"))
         if output_confidence:
             logits = frames_only(output.get("conf"))

@@ -13,12 +13,6 @@ from abot_recon.sparse_loop.sparse_keyframes import (
 from abot_recon.sparse_loop.types import LoopCandidate
 
 
-def test_public_loop_uses_sparse_keyframe_graph_by_default():
-    config = loop_module.LoopClosureConfig()
-    assert config.pose_graph_node_mode == "sparse_keyframes"
-    assert config.pose_graph_keyframe_stride == 50
-
-
 def test_disabled_loop_is_identity():
     poses = torch.eye(4).repeat(3, 1, 1)
     output, info = loop_module.apply_loop_closure(

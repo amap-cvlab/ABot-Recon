@@ -17,10 +17,8 @@ class InferenceConfig:
     local_window_frames: int = 12
     max_frames: int = 22_000
     attention_backend: str = "auto"
-    output_local_points: bool = True
-    output_world_points: bool = False
-    output_confidence: bool = True
-    confidence_threshold: float = 0.0
+    output_points: bool = False
+    output_confidence: bool = False
     loop_closure: bool = True
     loop_salad_checkpoint: Path = Path("checkpoints/loop/dino_salad.ckpt")
     loop_dino_checkpoint: Path = Path("checkpoints/loop/dinov2_vitb14_pretrain.pth")
@@ -37,8 +35,6 @@ class InferenceConfig:
             raise ValueError("The released model requires a 12-frame local window")
         if self.max_frames <= 0:
             raise ValueError("max_frames must be positive")
-        if not 0.0 <= self.confidence_threshold <= 1.0:
-            raise ValueError("confidence_threshold must be in [0, 1]")
 
     def override(self, **values: Any) -> "InferenceConfig":
         """Return a validated copy with API/CLI overrides applied."""

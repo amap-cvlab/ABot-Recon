@@ -1,0 +1,21 @@
+diff --git a/src/streamvggt/models/streamvggt.py b/src/streamvggt/models/streamvggt.py
+index f94b476..8d4a6f5 100644
+--- a/src/streamvggt/models/streamvggt.py
++++ b/src/streamvggt/models/streamvggt.py
+@@ -178,6 +178,9 @@ class StreamVGGT(nn.Module, PyTorchModelHubMixin):
+                     else {}
+                 ),
+             }
++            required_keys = getattr(frame_writer, "required_result_keys", None)
++            if required_keys is not None:
++                res_gpu = {key: value for key, value in res_gpu.items() if key in required_keys}
+             res_cpu = {
+                 k: v.detach().cpu() if isinstance(v, torch.Tensor) else v
+                 for k, v in res_gpu.items()
+@@ -197,4 +200,4 @@ class StreamVGGT(nn.Module, PyTorchModelHubMixin):
+         return StreamVGGTOutput(
+             ress=all_ress if cache_results else None,
+             views=processed_frames if cache_results else None,
+-        )
+\ No newline at end of file
++        )

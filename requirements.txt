@@ -1,0 +1,17 @@
+torch==2.5.1
+torchvision==0.20.1
+numpy==1.26.4
+einops
+pillow
+scikit-image
+opencv-python
+huggingface_hub
+safetensors
+matplotlib
+tqdm
+pandas
+rootutils
+hydra-core==1.3.2
+hydra-colorlog
+open3d  # for point map evaluation
+evo==1.31.0  # for camera distance evaluation

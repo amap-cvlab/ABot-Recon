@@ -1,260 +1,133 @@
 <div align="center">
 
-# ABot-Recon
+# ABot-Recon 评测
 
-### Revisiting Local Context for Long-Horizon Streaming 3D Reconstruction
+### 可复现的相机位姿与稠密重建基准
 
 [English](README.md) | [中文](README_ZH.md)
 
-[![Paper](https://img.shields.io/static/v1?label=Paper&message=arXiv&color=5B6F9A&logo=arxiv&logoColor=white)](TBD)
-[![PDF](https://img.shields.io/static/v1?label=Paper&message=PDF&color=6A83A8&logo=adobeacrobatreader&logoColor=white)](TBD)
-[![Project](https://img.shields.io/static/v1?label=Project&message=Website&color=2F7F83&logo=googlechrome&logoColor=white)](https://amap-cvlab.github.io/ABot-Recon-html)
-[![Code](https://img.shields.io/static/v1?label=Code&message=GitHub&color=333333&logo=github&logoColor=white)](https://github.com/amap-cvlab/ABot-Recon)
-[![Hugging Face](https://img.shields.io/static/v1?label=%F0%9F%A4%97%20Model&message=Hugging%20Face&color=7867A8)](https://huggingface.co/acvlab/ABot-Recon)
-[![ModelScope](https://img.shields.io/static/v1?label=%F0%9F%A4%96%20Model&message=ModelScope&color=5578B8)](https://modelscope.cn/models/amap_cvlab/ABot-Recon)
-[![Online Demo](https://img.shields.io/static/v1?label=%F0%9F%8C%90%20Online%20Demo&message=Coming%20Soon&color=328C8C)](TBD)
-[![License](https://img.shields.io/static/v1?label=License&message=Apache-2.0&color=438A68)](LICENSE)
+[![Hugging Face](https://img.shields.io/static/v1?label=%F0%9F%A4%97%20Model&message=Hugging%20Face&color=7867A8)](https://huggingface.co/acvlab/ABot-Recon) [![ModelScope](https://img.shields.io/static/v1?label=%F0%9F%A4%96%20Model&message=ModelScope&color=5578B8)](https://modelscope.cn/models/amap_cvlab/ABot-Recon) [![License](https://img.shields.io/static/v1?label=License&message=Apache-2.0&color=438A68)](LICENSE)
 
 </div>
 
-<!-- 请在正式发布前替换上方所有 TBD 链接。 -->
+本分支用于复现 ABot-Recon 技术报告中的相机位姿和稠密三维重建实验。`main` 分支提供最小推理代码；本分支额外包含固定评测协议、第三方方法适配器、数据集 loader、指标实现和发布检查。
 
-> **一句话介绍：** ABot-Recon 仅使用固定的 12 帧局部上下文处理超长视频流，将当前帧几何与相邻帧相对位姿逐步组合为全局重建，无需持久化的学习式长程记忆。
+请先按照 `main` 分支配置环境，再切换到 `eval` 分支并运行 `pip install -e ".[eval,loop]"` 安装评测依赖。
 
-## 为什么使用局部上下文？
+## 评测数据
 
-现有长时程流式重建方法通常通过更加复杂的机制保存并融合长程状态。ABot-Recon 选择了一条严格局部的路径，在每个时刻解决相同且有界的预测问题：
+数据下载与预处理遵循对应工作的公开协议：
 
-- 缓存此前 11 帧的 KV 特征；
-- 在当前相机坐标系中预测点图 $P_i$；
-- 估计与前一帧之间的相对位姿 $T_{i-1\leftarrow i}$；
-- 通过逐步组合相对位姿恢复全局轨迹和点云。
+- **KITTI 和 VBR：** 按照 [LoGeR](https://loger-project.github.io/) 提供的长序列位姿基准准备；
+- **Oxford Spires：** 按照 [LingBot-Map](https://github.com/Robbyant/lingbot-map) 及其 Oxford 预处理流程准备；
+- **7Scenes 和 TUM-Dynamic：** 按照 [CUT3R](https://github.com/CUT3R/CUT3R) 的评测数据流程准备。
 
-因此，模型状态占用和单帧计算量均不随已处理序列长度增长。轻量级运动—视觉旋转精修器与组合感知位姿损失进一步抑制局部位姿在长时程组合中的误差累积。
+本仓库不重新分发数据。预期目录结构和可配置相对路径见 [data/README.md](data/README.md)。
 
-## 结果概览
+## 评测协议
 
-<p align="center">
-  <img src="benchmark_comparison_transparent.png" width="82%" alt="ABot-Recon 在 Oxford Spires 和 KITTI-02 上的结果对比">
-</p>
+### 相机位姿
 
-| 评测项目 | 结果 | 设置 |
-|---|---:|---|
-| Oxford Spires 相机位姿 | ATE **4.35 m**，RPE-R **0.12°** | 仅流式模型，不使用回环 |
-| Oxford Spires 稠密重建 | CD **1.37 m**，F1 **91.81%** | F1 阈值 $\tau=4$ m |
-| KITTI-02 流式效率 | **24.45 FPS**，**6.71 GiB** | 504×280，NVIDIA H100，不计输入存储 |
+KITTI Odometry 00--10、Oxford Spires 和 VBR 均按照时间顺序以 stride 1 单次处理。每条序列独立进行 Umeyama Sim(3) 对齐，并报告 ATE RMSE、gap-1 RPE-R 和 gap-1 RPE-T。
 
-论文还报告了 KITTI、Oxford Spires 和 VBR 上的相机位姿结果，以及 7Scenes、TUM-Dynamic 和 Oxford Spires 上的稠密重建结果。
+### 稠密三维重建
 
-## 安装
+| 数据集 | 模型前向帧 | 点云指标帧 |
+|---|---|---|
+| 7Scenes | 7 个场景各自的 `seq-01`，stride 1 | 所有前向帧 |
+| TUM-Dynamics-Full | 8 条动态序列的全部关联 RGB 帧，stride 1 | 所有前向帧 |
+| Oxford Spires | 10 条 rectified 序列的全部帧，stride 1 | 源帧 ID `0,10,20,...` |
 
-发布配置面向 Linux、Python 3.10 及以上版本、PyTorch 2.5.1 和 CUDA 12.1。发布环境在 NVIDIA A100 上完成验证，论文中的运行效率则在 NVIDIA H100 上测试。
+因此 Oxford 是 stride-1 模型推理、interval-10 点云评测。正式启动器暴露 `--oxford-metric-interval`，默认值为 10，并拒绝其他值，避免正式结果静默偏离技术报告协议。
 
-```bash
-conda create -n abot-recon python=3.11 -y
-conda activate abot-recon
-
-pip install torch==2.5.1 torchvision==0.20.1 \
-  --index-url https://download.pytorch.org/whl/cu121
-pip install -e .
-```
-
-### 推荐加速组件
-
-若环境中安装了 FlashInfer，ABot-Recon 将使用其分页 KV-cache 算子；否则自动回退至 PyTorch SDPA。编译 cuRoPE 可进一步加速旋转位置编码。
-
-```bash
-pip install flashinfer-python
-flashinfer show-config
-
-cd abot_recon/modeling/pi3/models/curope
-pip install ninja
-python setup.py build_ext --inplace
-cd -
-```
-
-## 模型权重
-
-模型权重已发布至 [Hugging Face](https://huggingface.co/acvlab/ABot-Recon) 和 [ModelScope 魔搭](https://modelscope.cn/models/amap_cvlab/ABot-Recon)。Python API 和演示脚本默认从 Hugging Face 自动下载权重并复用本地缓存。离线推理时，可手动下载并放置在：
+## 目录结构
 
 ```text
-checkpoints/abot_recon.safetensors
+abot_recon/             ABot-Recon 发布推理代码
+configs/                Hydra 模型、数据和协议配置
+datasets/               正式评测数据集 loader
+interfaces/             各模型评测适配器
+mv_recon/               重建指标与协议验证
+relpose/                相机位姿评测
+scripts/                发布启动脚本
+third_party_patches/    针对固定官方 commit 的补丁
+tests/                  发布与集成测试
 ```
 
-## 快速开始
+## 第三方方法
 
-基础模型不依赖回环相关软件包或权重。输入图像按字典序排序，因此建议使用补零后的帧文件名，例如 `000001.jpg`、`000002.jpg`。
+第三方源码与权重不包含在本仓库中。建议将干净且固定 commit 的官方仓库放在 `third_party/`，也可以通过 `OFFICIAL_ROOT` 和 `HS_ROOT` 覆盖。评测代码支持直接使用干净的官方仓库；`third_party_patches/` 中固定 commit 的补丁用于复现正式长序列评测采用的低内存执行路径。详见 [third_party/README.md](third_party/README.md) 和 [third_party_patches/README.md](third_party_patches/README.md)。
+
+当前支持 [CUT3R](https://github.com/CUT3R/CUT3R)、[TTT3R](https://github.com/Inception3D/TTT3R)、[LingBot-Map](https://github.com/Robbyant/lingbot-map)、[LongStream](https://github.com/3DAgentWorld/LongStream)、[InfiniteVGGT](https://github.com/AutoLab-SAI-SJTU/InfiniteVGGT)、[OVGGT](https://github.com/VAISR/OVGGT)、[STream3R-window5](https://github.com/NIRVANALAN/STream3R) 和 [HorizonStream](https://github.com/3DAgentWorld/HorizonStream)。第三方源码和权重继续遵循其原始许可证。
+
+## 相机位姿评测
+
+单个数据集运行示例：
 
 ```bash
-python demo.py \
-  --image-dir examples/images \
-  --output-dir outputs/demo \
+bash scripts/run_long_pose_protocol.sh \
+  --method abot_recon \
+  --dataset kitti \
+  --stride 1 \
+  --gpu 0 \
+  --ckpt checkpoints/abot_recon.safetensors \
   --attention-backend auto \
-  --no-loop-closure
+  --out-dir outputs/pose/kitti
 ```
 
-该最小示例对输入序列执行一次因果前向推理，并保存原始相机轨迹、相邻帧相对位姿、局部点图、置信度图和运行元数据。对于包含重访区域的序列，轨迹精修方式见[可选回环](#可选回环)。
+每种方法的完整命令、reset 策略、回环模式和无 GT 自定义序列运行方式见 [relpose/README.md](relpose/README.md)。
 
-常用输出选项：
+## 稠密重建评测
 
-| 选项 | 作用 |
-|---|---|
-| `--save-world-points` | 使用最终轨迹变换局部点图并保存全局点云 |
-| `--no-save-local-points` | 不保存逐帧局部点图 |
-| `--no-save-confidence` | 不保存置信度图 |
-| `--confidence-threshold T` | 屏蔽置信度低于 `[0, 1]` 区间内阈值 `T` 的点 |
-| `--loop-closure` / `--no-loop-closure` | 开启或关闭可选回环优化；默认开启 |
-| `--start`、`--end`、`--stride` | 从排序后的输入流中选择帧 |
-| `--dense-stride N` | 估计每个选中帧的位姿，但每隔 `N` 帧保存一次稠密输出 |
-| `--max-frames N` | 设置支持的最大序列长度，默认为 `22000` |
-
-### Python API
-
-```python
-from pathlib import Path
-from abot_recon import ABotRecon
-
-images = sorted(Path("examples/images").glob("*.jpg"))
-
-model = ABotRecon.from_pretrained(
-    "acvlab/ABot-Recon",
-    device="cuda",
-    attention_backend="auto",
-    loop_closure=False,
-)
-
-result = model.infer(images)
-
-trajectory = result.camera_poses
-relative_poses = result.relative_poses
-local_points = result.local_points
-confidence = result.confidence
-```
-
-权重只会下载一次，后续直接从 Hugging Face 缓存加载。离线推理时，将仓库 ID
-替换为本地权重路径即可。
-
-设置 `output_world_points=True` 可返回由最终轨迹变换后的世界坐标系点图；若仅需部分帧的稠密几何，可使用 `dense_output_indices`。
-
-## 可选回环
-
-学习式模型本身不依赖回环。当序列中存在有效的重复访问时，可选后端使用 DINOv2-SALAD 描述子检索候选帧对，由 ABot-Recon 预测相对位姿约束，并通过稀疏位姿图优化精修轨迹。
-
-安装可选依赖并下载检索模型：
+依次运行技术报告中的三个重建数据集：
 
 ```bash
-pip install -e ".[loop]"
-python scripts/download_loop_assets.py --output-dir checkpoints/loop
-```
-
-文件结构应为：
-
-```text
-checkpoints/
-├── abot_recon.safetensors
-└── loop/
-    ├── dino_salad.ckpt
-    └── dinov2_vitb14_pretrain.pth
-```
-
-启用回环进行推理：
-
-```bash
-python demo.py \
-  --image-dir examples/images \
-  --output-dir outputs/demo_loop \
+bash scripts/run_mv_recon_stride1_suite.sh \
+  --method abot_recon \
+  --ckpt checkpoints/abot_recon.safetensors \
+  --gpu 0 \
+  --align sim3 \
   --attention-backend auto \
-  --loop-closure
+  --oxford-metric-interval 10 \
+  --out-root outputs/mv_recon/abot_recon
 ```
 
-启用回环后，`camera_poses` 保存精修后的轨迹，`camera_poses_noloop` 则保留原始流式预测。
+稠密重建默认关闭回环。Oxford 的每一帧仍会参与模型前向；`--oxford-metric-interval 10` 只控制 TLS 点云指标使用的帧。单数据集使用 `scripts/run_mv_recon_protocol.sh`，完整方法矩阵使用 `scripts/run_all_models_mv_recon.sh`。所有模型命令见 [mv_recon/README.md](mv_recon/README.md)。
 
-## 输出文件
+## 可复现性约束
 
-实际生成的文件取决于所选择的输出选项：
+正式启动器会记录完整命令、checkpoint SHA256、源码 revision、实际输入尺寸与 dtype、处理帧数和 runtime manifest。严格协议验证会拒绝错误的 stride、Oxford metric frame ID、对齐方式、resize 模式、精度、voxel size 和 F1 threshold。完整协议见 [README_ONLINE_EVAL_PROTOCOL.md](README_ONLINE_EVAL_PROTOCOL.md)。
 
-```text
-outputs/demo/
-├── camera_poses.npy
-├── relative_poses.npy
-├── camera_poses_noloop.npy
-├── relative_poses_noloop.npy
-├── camera_poses_loop.npy       # 仅在启用回环时生成
-├── relative_poses_loop.npy     # 仅在启用回环时生成
-├── local_points.pt             # 默认生成
-├── world_points.pt             # 使用 --save-world-points 时生成
-├── colors.pt                   # 与点图对齐的 RGB
-├── confidence.pt               # 默认生成
-├── confidence_mask.pt          # 默认生成
-└── metadata.json
-```
-
-局部点图保留在各自对应的相机坐标系中；世界坐标系点云则使用最终选定的轨迹生成。
-
-### 可视化
+长时间评测前可先检查命令和 Hydra 配置：
 
 ```bash
-python scripts/export_reconstruction_ply.py \
-  --poses outputs/demo/camera_poses.npy \
-  --points outputs/demo/local_points.pt \
-  --colors outputs/demo/colors.pt \
-  --output outputs/demo/reconstruction.ply \
-  --bev-output outputs/demo/trajectory_bev.png
+bash scripts/run_mv_recon_stride1_suite.sh \
+  --method abot_recon \
+  --ckpt checkpoints/abot_recon.safetensors \
+  --out-root outputs/config_check \
+  --config-check
 ```
-
-该命令会生成 RGB 点云 PLY，以及一张独立的 BEV 轨迹图；轨迹不会写入 PLY。
-
-## 评测
-
-相机位姿与稠密重建评测协议维护在 `eval` 分支：
-
-```bash
-git switch eval
-```
-
-该分支包含数据集准备、第三方权重、评测命令和指标汇总说明。为遵循论文协议，稠密重建评测不使用回环。
 
 ## 测试
 
 ```bash
 pytest -q
+ABOT_RECON_REQUIRE_CUROPE=1 pytest -q tests/test_curope_parity.py
+pytest -q mv_recon/tests relpose/tests
+bash -n scripts/*.sh
+sha256sum -c third_party_patches/SHA256SUMS
 ```
 
-CUDA 专项测试和真实权重集成测试可分别运行：
+使用真实权重测试 paged 与 SDPA 后端及 eval adapter：
 
 ```bash
-ABOT_RECON_REQUIRE_CUROPE=1 pytest -q tests/test_curope_parity.py
-
 ABOT_RECON_CHECKPOINT=checkpoints/abot_recon.safetensors \
 ABOT_RECON_IMAGE_DIR=examples/images \
 ABOT_RECON_DEVICE=cuda \
-pytest -q tests/integration/test_real_checkpoint.py
+pytest -q tests/integration/test_real_checkpoint.py \
+  tests/integration/test_eval_adapter_real_checkpoint.py
 ```
 
-## 发布状态
+## 许可证
 
-- [ ] 训练代码与配置
-- [x] 公开模型权重
-- [x] 推理与评测代码
-
-## 引用
-
-```bibtex
-@article{abot_recon2026,
-  title         = {Revisiting Local Context for Long-Horizon Streaming 3D Reconstruction},
-  author        = {{AMAP CV Lab}},
-  journal       = {arXiv preprint arXiv:TBD},
-  year          = {2026},
-  eprint        = {TBD},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.CV},
-  doi           = {TBD},
-  url           = {https://arxiv.org/abs/TBD}
-}
-```
-
-## 许可证与致谢
-
-源代码采用 [Apache License 2.0](LICENSE)。模型权重遵循 [MODEL_LICENSE.md](MODEL_LICENSE.md)，第三方组件及其许可证记录在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-ABot-Recon 基于 Pi3 构建，并参考了 CroCo、DUSt3R、DINOv2、SALAD、FlashInfer、LingBot-Map、HorizonStream 和 LongStream。感谢这些工作的作者与贡献者。
+仓库代码采用 [Apache License 2.0](LICENSE)，模型权重许可证见 [MODEL_LICENSE.md](MODEL_LICENSE.md)，第三方组件来源与条款见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。重新分发第三方源码、权重或数据前，请单独检查对应项目和数据集的许可证。

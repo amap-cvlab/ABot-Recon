@@ -6,13 +6,7 @@ ROOT = Path(__file__).parents[1]
 
 def test_internal_rope_uses_release_names():
     source_root = ROOT / "abot_recon"
-    inherited_prefix = "ling" + "bot"
-    forbidden = (
-        inherited_prefix + "_3d",
-        inherited_prefix + "_rope",
-        inherited_prefix + "_wan_rope",
-        "rope." + inherited_prefix,
-    )
+    forbidden = ("lingbot_3d", "lingbot_rope", "lingbot_wan_rope", "rope.lingbot")
     offenders = []
     for path in source_root.rglob("*.py"):
         text = path.read_text(encoding="utf-8")

@@ -1,0 +1,57 @@
+
+kitti-long:
+  root_path: data/kitti-long/dataset
+  ls_all_seqs:
+    - "00"
+    - "01"
+    - "02"
+    - "03"
+    - "04"
+    - "05"
+    - "06"
+    - "07"
+    - "08"
+    - "09"
+    - "10"
+  # Per-dataset stride; ``eval_dist.py`` prefers this over the global one.
+  pose_eval_stride: 1
+  img:
+    path: ${data.kitti-long.root_path}/sequences/{seq}/image_2
+    ext: png
+  anno:
+    path: ${data.kitti-long.root_path}/poses/{seq}.txt
+    format: kitti
+
+vbr-long:
+  # Same aligned RGB/pose pairs used by run_triple_long_relhead_eval.sh.
+  # Keep this list explicit so processed_gt/debug folders can never be treated
+  # as evaluation sequences.
+  root_path: data/vbr-long/vbr
+  ls_all_seqs:
+    - campus_train0_processed_aligned
+    - campus_train1_processed_aligned
+    - ciampino_train1_processed_aligned
+    - colosseo_train0_processed_aligned
+    - diag_train0_processed_aligned
+    - pincio_train0_processed_aligned
+    - spagna_train0_processed_aligned
+  pose_eval_stride: 1
+  img:
+    path: ${data.vbr-long.root_path}/{seq}/rgb
+    ext: png
+  anno:
+    path: ${data.vbr-long.root_path}/{seq}/camera_pose.txt
+    format: tum
+
+oxford_spires_processed-long:
+  # Preprocessed Oxford Spires: 10 scenes, 3840 frames each.
+  # Uses rectified images + poses_c2w.txt from preprocess/oxford.py.
+  root_path: data/oxford_spires/processed_sequences
+  ls_all_seqs: ${data.oxford_spires_processed-long.root_path}
+  pose_eval_stride: 1
+  img:
+    path: ${data.oxford_spires_processed-long.root_path}/{seq}/images
+    ext: png
+  anno:
+    path: ${data.oxford_spires_processed-long.root_path}/{seq}/poses_c2w.txt
+    format: replica

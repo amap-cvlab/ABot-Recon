@@ -17,5 +17,4 @@ class ReconstructionResult:
     local_points: torch.Tensor | None = None
     world_points: torch.Tensor | None = None
     confidence: torch.Tensor | None = None
-    confidence_mask: torch.Tensor | None = None
     metadata: dict[str, Any] | None = None

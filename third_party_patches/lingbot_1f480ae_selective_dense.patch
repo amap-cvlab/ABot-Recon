@@ -1,0 +1,98 @@
+diff --git a/lingbot_map/models/gct_stream.py b/lingbot_map/models/gct_stream.py
+index dd393f1..fb58212 100644
+--- a/lingbot_map/models/gct_stream.py
++++ b/lingbot_map/models/gct_stream.py
+@@ -353,6 +353,7 @@ class GCTStream(GCTBase):
+         num_scale_frames: Optional[int] = None,
+         keyframe_interval: int = 1,
+         output_device: Optional[torch.device] = None,
++        dense_output_indices: Optional[List[int]] = None,
+     ) -> Dict[str, torch.Tensor]:
+         """
+         Streaming inference: process scale frames first, then frame-by-frame.
+@@ -393,6 +394,14 @@ class GCTStream(GCTBase):
+             images = images.unsqueeze(0)
+         B, S, C, H, W = images.shape
+ 
++        requested_dense = (
++            None if dense_output_indices is None else set(int(i) for i in dense_output_indices)
++        )
++        if requested_dense is not None and (
++            not requested_dense or min(requested_dense) < 0 or max(requested_dense) >= S
++        ):
++            raise ValueError(f"Invalid dense_output_indices for {S} frames")
++
+         # Determine number of scale frames
+         scale_frames = num_scale_frames if num_scale_frames is not None else self.num_frame_for_scale
+         scale_frames = min(scale_frames, S)  # Cap to available frames
+@@ -427,10 +436,30 @@ class GCTStream(GCTBase):
+ 
+         # Initialize output lists with scale frame predictions (offload if needed)
+         all_pose_enc = [_to_out(scale_output["pose_enc"])]
+-        all_depth = [_to_out(scale_output["depth"])] if "depth" in scale_output else []
+-        all_depth_conf = [_to_out(scale_output["depth_conf"])] if "depth_conf" in scale_output else []
+-        all_world_points = [_to_out(scale_output["world_points"])] if "world_points" in scale_output else []
+-        all_world_points_conf = [_to_out(scale_output["world_points_conf"])] if "world_points_conf" in scale_output else []
++        scale_select = (
++            list(range(scale_frames))
++            if requested_dense is None
++            else [i for i in range(scale_frames) if i in requested_dense]
++        )
++        all_depth = []
++        if "depth" in scale_output and scale_select:
++            all_depth = [_to_out(scale_output["depth"][:, scale_select])]
++        retain_aux_dense = dense_output_indices is None
++        all_depth_conf = (
++            [_to_out(scale_output["depth_conf"])]
++            if retain_aux_dense and "depth_conf" in scale_output
++            else []
++        )
++        all_world_points = (
++            [_to_out(scale_output["world_points"])]
++            if retain_aux_dense and "world_points" in scale_output
++            else []
++        )
++        all_world_points_conf = (
++            [_to_out(scale_output["world_points_conf"])]
++            if retain_aux_dense and "world_points_conf" in scale_output
++            else []
++        )
+         del scale_output
+ 
+         # Phase 2: Process remaining frames one-by-one
+@@ -470,20 +499,20 @@ class GCTStream(GCTBase):
+                 )
+ 
+             all_pose_enc.append(_to_out(frame_output["pose_enc"]))
+-            if "depth" in frame_output:
++            if "depth" in frame_output and (requested_dense is None or i in requested_dense):
+                 all_depth.append(_to_out(frame_output["depth"]))
+-            if "depth_conf" in frame_output:
++            if retain_aux_dense and "depth_conf" in frame_output:
+                 all_depth_conf.append(_to_out(frame_output["depth_conf"]))
+-            if "world_points" in frame_output:
++            if retain_aux_dense and "world_points" in frame_output:
+                 all_world_points.append(_to_out(frame_output["world_points"]))
+-            if "world_points_conf" in frame_output:
++            if retain_aux_dense and "world_points_conf" in frame_output:
+                 all_world_points_conf.append(_to_out(frame_output["world_points_conf"]))
+             del frame_output
+ 
+         # Free GPU memory before concatenation
+         if output_device is not None:
+             # Move images to output device, then free GPU copy
+-            images_out = _to_out(images)
++            images_out = None if dense_output_indices is not None else _to_out(images)
+             del images
+             # Clean KV cache (no longer needed after inference)
+             self.clean_kv_cache()
+@@ -511,7 +540,8 @@ class GCTStream(GCTBase):
+         del all_world_points_conf
+ 
+         # Store images for visualization
+-        predictions["images"] = images_out
++        if images_out is not None:
++            predictions["images"] = images_out
+ 
+         # Apply prediction normalization if enabled
+         if self.pred_normalization:

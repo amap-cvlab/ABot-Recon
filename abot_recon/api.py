@@ -54,13 +54,10 @@ class ABotRecon:
         self,
         image_paths: Iterable[str | Path],
         *,
-        output_local_points: bool | None = None,
-        output_world_points: bool | None = None,
+        output_points: bool | None = None,
         output_confidence: bool | None = None,
-        confidence_threshold: float | None = None,
         loop_closure: bool | None = None,
         dense_output_indices: Iterable[int] | None = None,
-        output_points: bool | None = None,
     ) -> ReconstructionResult:
         paths = [Path(path) for path in image_paths]
         if not paths:
@@ -68,40 +65,16 @@ class ABotRecon:
         for path in paths:
             if not path.is_file():
                 raise FileNotFoundError(path)
-        if output_points is not None:
-            if output_local_points is not None or output_world_points is not None:
-                raise ValueError(
-                    "output_points cannot be combined with output_local_points "
-                    "or output_world_points"
-                )
-            output_local_points = output_points
-            output_world_points = output_points
-        local_points_enabled = (
-            self.config.output_local_points
-            if output_local_points is None
-            else output_local_points
-        )
-        world_points_enabled = (
-            self.config.output_world_points
-            if output_world_points is None
-            else output_world_points
-        )
+        points = self.config.output_points if output_points is None else output_points
         confidence = (
             self.config.output_confidence if output_confidence is None else output_confidence
         )
-        threshold = (
-            self.config.confidence_threshold
-            if confidence_threshold is None
-            else float(confidence_threshold)
-        )
-        if not 0.0 <= threshold <= 1.0:
-            raise ValueError("confidence_threshold must be in [0, 1]")
         use_loop = self.config.loop_closure if loop_closure is None else loop_closure
         dense_indices = None
         if dense_output_indices is not None:
             dense_indices = [int(index) for index in dense_output_indices]
-            if not local_points_enabled and not world_points_enabled and not confidence:
-                raise ValueError("dense_output_indices requires at least one dense output")
+            if not points and not confidence:
+                raise ValueError("dense_output_indices requires a dense output")
             if any(index < 0 or index >= len(paths) for index in dense_indices):
                 raise ValueError("dense_output_indices contains an out-of-range frame")
             if dense_indices != sorted(set(dense_indices)):
@@ -117,12 +90,9 @@ class ABotRecon:
                 device=self.config.device,
             )
         try:
-            points_enabled = bool(local_points_enabled or world_points_enabled)
-            compute_confidence = bool(confidence or (points_enabled and threshold > 0.0))
             inference_kwargs = {
-                "output_local_points": bool(local_points_enabled),
-                "output_world_points": bool(world_points_enabled),
-                "output_confidence": compute_confidence,
+                "output_points": bool(points),
+                "output_confidence": bool(confidence),
                 "dense_output_indices": dense_indices,
             }
             if descriptor_worker is not None:
@@ -162,25 +132,12 @@ class ABotRecon:
             camera_poses = camera_poses_loop
 
         relative_poses = relative_from_c2w(camera_poses)
-        computed_local_points = output.get("local_points")
-        world_points = output.get("world_points") if world_points_enabled else None
-        if world_points_enabled and computed_local_points is not None and (
-            world_points is None or use_loop
-        ):
+        local_points = output.get("local_points")
+        world_points = output.get("world_points")
+        if local_points is not None and (world_points is None or use_loop):
             dense_poses = camera_poses if dense_indices is None else camera_poses[dense_indices]
-            world_points = transform_local_points(computed_local_points, dense_poses)
-        computed_confidence = output.get("confidence")
-        confidence_mask = None
-        if computed_confidence is not None:
-            confidence_mask = computed_confidence >= threshold
-        if threshold > 0.0 and confidence_mask is not None:
-            invalid = ~confidence_mask.unsqueeze(-1)
-            if computed_local_points is not None:
-                computed_local_points = computed_local_points.masked_fill(invalid, float("nan"))
-            if world_points is not None:
-                world_points = world_points.masked_fill(invalid, float("nan"))
-        local_points = computed_local_points if local_points_enabled else None
-        conf = computed_confidence if confidence else None
+            world_points = transform_local_points(local_points, dense_poses)
+        conf = output.get("confidence")
         return ReconstructionResult(
             camera_poses=camera_poses,
             relative_poses=relative_poses,
@@ -191,18 +148,11 @@ class ABotRecon:
             local_points=local_points,
             world_points=world_points,
             confidence=conf,
-            confidence_mask=confidence_mask,
             metadata={
                 "frames": len(paths),
                 "loop_closure": bool(use_loop),
                 "attention_backend": output.get("attention_backend", "unknown"),
                 "dense_output_indices": dense_indices,
-                "dense_outputs": {
-                    "local_points": bool(local_points_enabled),
-                    "world_points": bool(world_points_enabled),
-                    "confidence": bool(confidence),
-                },
-                "confidence_threshold": threshold,
                 "pose_outputs": ["noloop", "loop"] if use_loop else ["noloop"],
             },
         )

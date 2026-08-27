@@ -1,0 +1,18 @@
+defaults:
+  - general: default
+  - data: null
+  - model: default
+  - evaluation: null
+  - override hydra/job_logging: custom
+  - override hydra/hydra_logging: default
+  - _self_
+
+# Stable ABot-Recon point-cloud evaluation semantics. Only the ABot-Recon
+# adapter consumes these options; keeping them here covers every evaluation.
+pointmap_resize_mode: nearest
+pi3_pc_world_source: points
+
+# Loop closure is pose-only policy; dense reconstruction stays one-pass.
+abot_recon_loop_enabled: false
+abot_recon_loop_salad_ckpt: checkpoints/loop/dino_salad.ckpt
+abot_recon_loop_dino_weights: checkpoints/loop/dinov2_vitb14_pretrain.pth

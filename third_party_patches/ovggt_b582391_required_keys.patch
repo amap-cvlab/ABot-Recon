@@ -1,0 +1,21 @@
+diff --git a/src/ovggt/models/ovggt.py b/src/ovggt/models/ovggt.py
+index 0a2669f..2697bc1 100644
+--- a/src/ovggt/models/ovggt.py
++++ b/src/ovggt/models/ovggt.py
+@@ -344,6 +344,9 @@ class OVGGT(nn.Module, PyTorchModelHubMixin):
+                     else {}
+                 ),
+             }
++            required_keys = getattr(frame_writer, "required_result_keys", None)
++            if required_keys is not None:
++                res_gpu = {key: value for key, value in res_gpu.items() if key in required_keys}
+             res_cpu = {
+                 k: v.detach().cpu() if isinstance(v, torch.Tensor) else v
+                 for k, v in res_gpu.items()
+@@ -363,4 +366,4 @@ class OVGGT(nn.Module, PyTorchModelHubMixin):
+         return OVGGTOutput(
+             ress=all_ress if cache_results else None,
+             views=processed_frames if cache_results else None,
+-        )
+\ No newline at end of file
++        )

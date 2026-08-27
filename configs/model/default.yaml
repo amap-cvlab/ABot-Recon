@@ -1,0 +1,224 @@
+
+ttt3r:
+  cfg:
+    _target_: models.fastmodel.TTT3R
+    pretrained_model_name_or_path: checkpoints/cut3r/cut3r_512_dpt_4_64.pth
+    source_root: third_party/TTT3R
+    input_size: 512
+
+cut3r:
+  cfg:
+    _target_: models.fastmodel.CUT3R
+    pretrained_model_name_or_path: checkpoints/cut3r/cut3r_512_dpt_4_64.pth
+    source_root: third_party/CUT3R
+    input_size: 512
+
+lingbot_map:
+  cfg:
+    _target_: models.fastmodel.LingBotMAP
+    # Official release weights.
+    pretrained_model_name_or_path: checkpoints/lingbot-map/lingbot-map.pt
+    source_root: third_party/LingBot-Map
+    img_size: 518
+    patch_size: 14
+    mode: streaming
+    enable_3d_rope: true
+    max_frame_num: 8000
+    kv_cache_sliding_window: 64
+    kv_cache_scale_frames: 8
+    camera_num_iterations: 4
+    use_sdpa: false
+    num_scale_frames: 8
+    # null/"auto": 1 if N<=320 else ceil(N/320) — matches lingbot-map benchmark
+    keyframe_interval: null
+    window_size: 64
+    overlap_size: 1
+    # Official bench image preprocess (LINEAR area_budget → ~574x434 on 640x480)
+    preprocess_mode: area_budget
+    area_budget: 255000
+    align: 14
+  infer_cameras_c2w:
+    _target_: interfaces.lingbot_map.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.lingbot_map.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.lingbot_map.infer_mv_pointclouds
+    _partial_: true
+
+
+longstream:
+  cfg:
+    _target_: models.fastmodel.LongStream
+    checkpoint: checkpoints/longstream/50_longstream.pt
+    source_root: third_party/LongStream
+    strict_load: true
+    img_size: 518
+    patch_size: 14
+    embed_dim: 1024
+    window_size: 48
+    keyframe_stride: 8
+    refresh: 4
+    inference_mode: batch_refresh
+    streaming_mode: causal
+    rel_pose_num_iterations: 4
+    use_role_embedding: false
+    enable_scale_token: true
+    disable_keyframe_distinction: true
+    use_segment_mask: false
+    enable_camera_head: false
+    freeze: none
+    use_rel_pose_head: true
+    rel_pose_head_cfg:
+      enabled: true
+      keyframe_mode: fixed
+      keyframe_stride: 8
+      reference_source: pred
+      detach_reference: false
+      trunk_depth: 4
+      pose_mode: SE3
+      num_heads: 16
+      mlp_ratio: 4
+      init_values: 0.01
+      trans_act: linear
+      quat_act: linear
+      use_pair_cross_attn: false
+      xattn_temperature: 1.0
+      use_precat: false
+      use_kf_role_embed: false
+      kf_role_embed_init_std: 0.02
+      fl_act: relu
+      use_global_scale: false
+      reinit_camera_head: false
+  infer_cameras_c2w:
+    _target_: interfaces.longstream.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.longstream.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.longstream.infer_mv_pointclouds
+    _partial_: true
+
+
+infinitevggt:
+  cfg:
+    _target_: models.fastmodel.InfiniteVGGTEval
+    checkpoint: checkpoints/infinitevggt/checkpoints.pth
+    source_root: third_party/InfiniteVGGT
+    img_size: 518
+    patch_size: 14
+    total_budget: 1200000
+    preprocess_mode: crop
+    strict_load: true
+  infer_cameras_c2w:
+    _target_: interfaces.official_streaming.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.official_streaming.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.official_streaming.infer_mv_pointclouds
+    _partial_: true
+
+
+ovggt:
+  cfg:
+    _target_: models.fastmodel.OVGGTOfficialEval
+    checkpoint: checkpoints/infinitevggt/checkpoints.pth
+    source_root: third_party/OVGGT
+    img_size: 518
+    patch_size: 14
+    total_budget: 200000
+    camera_budget: 384
+    eviction_strategy: repr_shift_spatial
+    intra_frame_keep_ratio: 1.0
+    spatial_alpha: 0.5
+    importance_weight: 0.5
+    preprocess_mode: crop
+    strict_load: true
+  infer_cameras_c2w:
+    _target_: interfaces.official_streaming.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.official_streaming.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.official_streaming.infer_mv_pointclouds
+    _partial_: true
+
+
+stream3r_window5:
+  cfg:
+    _target_: models.fastmodel.STream3ROfficialEval
+    checkpoint: checkpoints/stream3r/model.safetensors
+    source_root: third_party/STream3R
+    mode: window
+    chunk_size: 1
+    img_size: 518
+    patch_size: 14
+    preprocess_mode: crop
+  infer_cameras_c2w:
+    _target_: interfaces.official_streaming.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.official_streaming.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.official_streaming.infer_mv_pointclouds
+    _partial_: true
+
+
+# HorizonStream official release
+horizonstream:
+  cfg:
+    _target_: models.fastmodel.HorizonStreamEval
+    checkpoint: checkpoints/horizonstream/HorizonStream.pt
+    horizonstream_root: third_party/HorizonStream
+    img_size: 518
+    patch_size: 14
+    crop: true
+    window_size: 10
+    sliding_size: 21
+    abs_pose_source: online
+    enable_offline_motion_averaging: false
+    # Horizon's public README "Minimal Python inference" uses FP16 autocast.
+    amp_dtype: fp16
+    strict_load: true
+  infer_cameras_c2w:
+    _target_: interfaces.horizonstream.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.horizonstream.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.horizonstream.infer_mv_pointclouds
+    _partial_: true
+
+
+abot_recon:
+  eval_output_name: null
+  cfg:
+    _target_: models.abot_recon.ABotReconEval
+    ckpt: checkpoints/abot_recon.safetensors
+    device: ${device}
+    height: 280
+    width: 504
+    fov_pad_rgb: [0.485, 0.456, 0.406]
+    local_window_frames: 12
+    local_window_override: 12
+    infer_mode: stream
+    attention_backend: auto
+    amp_dtype: bf16
+    max_frames: 22000
+    num_frames_cap: 22000
+  infer_cameras_c2w:
+    _target_: interfaces.abot_recon.infer_cameras_c2w
+    _partial_: true
+  infer_cameras_w2c:
+    _target_: interfaces.abot_recon.infer_cameras_w2c
+    _partial_: true
+  infer_mv_pointclouds:
+    _target_: interfaces.abot_recon.infer_mv_pointclouds
+    _partial_: true

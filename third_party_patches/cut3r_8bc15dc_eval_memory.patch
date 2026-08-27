@@ -1,0 +1,32 @@
+diff --git a/src/dust3r/model.py b/src/dust3r/model.py
+index 7ed9f61..e6bc096 100644
+--- a/src/dust3r/model.py
++++ b/src/dust3r/model.py
+@@ -1029,9 +1029,10 @@ class ARCroco3DStereo(CroCoNet):
+                 mem = self.pose_retriever.mem.expand(feat_i.shape[0], -1, -1)
+                 init_state_feat = state_feat.clone()
+                 init_mem = mem.clone()
+-                all_state_args.append(
+-                    (state_feat, state_pos, init_state_feat, mem, init_mem)
+-                )
++                if ret_state:
++                    all_state_args.append(
++                        (state_feat, state_pos, init_state_feat, mem, init_mem)
++                    )
+ 
+             if self.pose_head_flag:
+                 global_img_feat_i = self._get_img_level_feat(feat_i)
+@@ -1092,9 +1093,10 @@ class ARCroco3DStereo(CroCoNet):
+                     1 - reset_mask
+                 )
+                 mem = init_mem * reset_mask + mem * (1 - reset_mask)
+-            all_state_args.append(
+-                (state_feat, state_pos, init_state_feat, mem, init_mem)
+-            )
++            if ret_state:
++                all_state_args.append(
++                    (state_feat, state_pos, init_state_feat, mem, init_mem)
++                )
+         if ret_state:
+             return ress, views, all_state_args
+         return ress, views

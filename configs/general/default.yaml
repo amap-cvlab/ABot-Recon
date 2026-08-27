@@ -1,0 +1,13 @@
+# @package _global_
+
+name: 'template'
+
+work_dir: ${hydra:runtime.cwd}
+
+output_dir: ${work_dir}/outputs/${name}/${now:%Y-%m-%d_%H-%M-%S}
+
+hydra:
+  run:
+    dir: ${output_dir}/hydra/${now:%Y-%m-%d_%H-%M-%S}
+
+debug: false

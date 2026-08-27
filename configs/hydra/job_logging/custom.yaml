@@ -1,0 +1,25 @@
+version: 1
+formatters:
+  color:
+    (): colorlog.ColoredFormatter  # 使用 colorlog 的彩色格式化器
+    format: "[%(cyan)s%(asctime)s%(reset)s][%(blue)s%(name)s%(reset)s][%(log_color)s%(levelname)s%(reset)s] - %(white)s%(message)s%(reset)s"
+    log_colors:
+      DEBUG: cyan
+      INFO: green
+      WARNING: yellow
+      ERROR: red
+      CRITICAL: bold_red
+  simple:
+    format: "[%(asctime)s][%(name)s][%(levelname)s] - %(message)s"
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: color  # log to console, color it
+    stream: ext://sys.stdout
+  file:
+    class: logging.FileHandler
+    formatter: simple  # save to log file, just use simple formatter
+    filename: ${hydra:run.dir}/log.log  # log save path
+root:
+  level: INFO
+  handlers: [console, file]  # output to console and file simultaneously

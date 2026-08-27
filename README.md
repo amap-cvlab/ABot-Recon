@@ -1,259 +1,133 @@
 <div align="center">
 
-# ABot-Recon
+# ABot-Recon Evaluation
 
-### Revisiting Local Context for Long-Horizon Streaming 3D Reconstruction
+### Reproducible Camera-Pose and Dense-Reconstruction Benchmarks
 
 [English](README.md) | [中文](README_ZH.md)
 
-[![Paper](https://img.shields.io/static/v1?label=Paper&message=arXiv&color=5B6F9A&logo=arxiv&logoColor=white)](TBD)
-[![PDF](https://img.shields.io/static/v1?label=Paper&message=PDF&color=6A83A8&logo=adobeacrobatreader&logoColor=white)](TBD)
-[![Project](https://img.shields.io/static/v1?label=Project&message=Website&color=2F7F83&logo=googlechrome&logoColor=white)](https://amap-cvlab.github.io/ABot-Recon-html)
-[![Code](https://img.shields.io/static/v1?label=Code&message=GitHub&color=333333&logo=github&logoColor=white)](https://github.com/amap-cvlab/ABot-Recon)
-[![Hugging Face](https://img.shields.io/static/v1?label=%F0%9F%A4%97%20Model&message=Hugging%20Face&color=7867A8)](https://huggingface.co/acvlab/ABot-Recon)
-[![ModelScope](https://img.shields.io/static/v1?label=%F0%9F%A4%96%20Model&message=ModelScope&color=5578B8)](https://modelscope.cn/models/amap_cvlab/ABot-Recon)
-[![Online Demo](https://img.shields.io/static/v1?label=%F0%9F%8C%90%20Online%20Demo&message=Coming%20Soon&color=328C8C)](TBD)
-[![License](https://img.shields.io/static/v1?label=License&message=Apache-2.0&color=438A68)](LICENSE)
+[![Hugging Face](https://img.shields.io/static/v1?label=%F0%9F%A4%97%20Model&message=Hugging%20Face&color=7867A8)](https://huggingface.co/acvlab/ABot-Recon) [![ModelScope](https://img.shields.io/static/v1?label=%F0%9F%A4%96%20Model&message=ModelScope&color=5578B8)](https://modelscope.cn/models/amap_cvlab/ABot-Recon) [![License](https://img.shields.io/static/v1?label=License&message=Apache-2.0&color=438A68)](LICENSE)
 
 </div>
 
-<!-- Replace the TBD links above before the public release. -->
+This branch reproduces the camera-pose and dense-reconstruction evaluations used in the ABot-Recon technical report. The `main` branch contains the minimal inference runtime; this branch adds fixed protocols, third-party adapters, dataset loaders, metrics, and release checks.
 
-> **In one sentence:** ABot-Recon reconstructs long video streams with a fixed 12-frame local context, composing current-frame geometry and adjacent relative poses into a global reconstruction without persistent learned long-range memory.
+Start from the environment described on the `main` branch, switch to `eval`, and install the evaluation extras with `pip install -e ".[eval,loop]"`.
 
-## Why local context?
+## Evaluation Data
 
-Long-horizon streaming reconstruction is often approached by adding increasingly elaborate mechanisms for retaining and fusing long-range state. ABot-Recon takes a deliberately local route. At each time step, it solves the same bounded prediction problem:
+Dataset download and preprocessing follow the public protocols used by the corresponding prior work:
 
-- cache KV features from the preceding 11 frames;
-- predict a point map $P_i$ in the current camera coordinate system;
-- estimate the adjacent relative pose $T_{i-1\leftarrow i}$; and
-- recover the global trajectory and point cloud through sequential pose composition.
+- **KITTI and VBR:** follow [LoGeR](https://loger-project.github.io/) for the long-sequence pose benchmarks;
+- **Oxford Spires:** follow [LingBot-Map](https://github.com/Robbyant/lingbot-map), including its Oxford preprocessing pipeline; and
+- **7Scenes and TUM-Dynamic:** follow the evaluation-data preparation in [CUT3R](https://github.com/CUT3R/CUT3R).
 
-This design keeps model-state memory and per-frame computation independent of the elapsed sequence length. A lightweight motion-visual rotation refiner and composition-aware pose loss are used to limit drift when local poses are composed over long horizons.
+The datasets are not redistributed in this repository. Expected directory layouts and configurable relative paths are documented in [data/README.md](data/README.md).
 
-## Results at a glance
+## Supported Protocols
 
-<p align="center">
-  <img src="benchmark_comparison_transparent.png" width="82%" alt="ABot-Recon comparison on Oxford Spires and KITTI-02">
-</p>
+### Camera pose
 
-| Evaluation | Result | Setting |
-|---|---:|---|
-| Oxford Spires camera pose | ATE **4.35 m**, RPE-R **0.12°** | Streaming model only; no loop closure |
-| Oxford Spires dense reconstruction | CD **1.37 m**, F1 **91.81%** | F1 threshold $\tau=4$ m |
-| KITTI-02 streaming efficiency | **24.45 FPS**, **6.71 GiB** | 504×280, NVIDIA H100, input storage excluded |
+KITTI odometry 00--10, Oxford Spires, and VBR are processed once at stride 1. Each sequence is aligned independently with Umeyama Sim(3), and the evaluator reports ATE RMSE, gap-1 RPE-R, and gap-1 RPE-T.
 
-The full paper reports camera-pose results on KITTI, Oxford Spires, and VBR, together with dense reconstruction on 7Scenes, TUM-Dynamic, and Oxford Spires.
+### Dense reconstruction
 
-## Installation
+| Dataset | Forward frames | Metric frames |
+|---|---|---|
+| 7Scenes | `seq-01` from all seven scenes, stride 1 | every forwarded frame |
+| TUM-Dynamics-Full | all associated RGB frames, stride 1 | every forwarded frame |
+| Oxford Spires | all ten rectified sequences, stride 1 | source IDs `0,10,20,...` |
 
-The released configuration targets Linux, Python 3.10 or later, PyTorch 2.5.1, and CUDA 12.1. The release environment was validated on NVIDIA A100, while the paper's runtime benchmark uses an NVIDIA H100.
+Oxford therefore uses stride-1 model inference and interval-10 point-cloud evaluation. The formal launchers expose `--oxford-metric-interval`, default it to 10, and reject any other value so that a formal run cannot silently deviate from the report protocol.
 
-```bash
-conda create -n abot-recon python=3.11 -y
-conda activate abot-recon
-
-pip install torch==2.5.1 torchvision==0.20.1 \
-  --index-url https://download.pytorch.org/whl/cu121
-pip install -e .
-```
-
-### Recommended acceleration
-
-ABot-Recon uses paged KV-cache operators from FlashInfer when they are available and falls back to PyTorch SDPA otherwise. Compiling cuRoPE further accelerates rotary position encoding.
-
-```bash
-pip install flashinfer-python
-flashinfer show-config
-
-cd abot_recon/modeling/pi3/models/curope
-pip install ninja
-python setup.py build_ext --inplace
-cd -
-```
-
-## Model checkpoint
-
-The released checkpoint is available on [Hugging Face](https://huggingface.co/acvlab/ABot-Recon) and [ModelScope](https://modelscope.cn/models/amap_cvlab/ABot-Recon). The Python API and demo download it automatically from Hugging Face and reuse the local cache. For offline inference, download the checkpoint manually and place it at:
+## Repository Layout
 
 ```text
-checkpoints/abot_recon.safetensors
+abot_recon/             released ABot-Recon runtime
+configs/                Hydra model, dataset, and protocol configuration
+datasets/               formal evaluation dataset loaders
+interfaces/             model-specific adapters
+mv_recon/               reconstruction metrics and protocol validation
+relpose/                camera-pose evaluation
+scripts/                checked release launchers
+third_party_patches/    pinned patches for external official repositories
+tests/                  release and integration tests
 ```
 
-## Quick start
+## Third-Party Methods
 
-The base model requires neither loop-closure dependencies nor loop assets. Input images are sorted lexicographically, so frame names should be zero-padded (for example, `000001.jpg`, `000002.jpg`, ...).
+Third-party checkpoints and source trees are external inputs. Place clean, pinned official checkouts under `third_party/`, or override `OFFICIAL_ROOT` and `HS_ROOT`. Clean official checkouts are supported directly. The pinned patches under `third_party_patches/` reproduce the memory-efficient code paths used in our formal long-sequence evaluation. See [third_party/README.md](third_party/README.md) and [third_party_patches/README.md](third_party_patches/README.md).
+
+Supported streaming baselines include [CUT3R](https://github.com/CUT3R/CUT3R), [TTT3R](https://github.com/Inception3D/TTT3R), [LingBot-Map](https://github.com/Robbyant/lingbot-map), [LongStream](https://github.com/3DAgentWorld/LongStream), [InfiniteVGGT](https://github.com/AutoLab-SAI-SJTU/InfiniteVGGT), [OVGGT](https://github.com/VAISR/OVGGT), [STream3R-window5](https://github.com/NIRVANALAN/STream3R), and [HorizonStream](https://github.com/3DAgentWorld/HorizonStream). Their source and weights retain their original licenses.
+
+## Camera-Pose Evaluation
+
+Run one dataset:
 
 ```bash
-python demo.py \
-  --image-dir examples/images \
-  --output-dir outputs/demo \
+bash scripts/run_long_pose_protocol.sh \
+  --method abot_recon \
+  --dataset kitti \
+  --stride 1 \
+  --gpu 0 \
+  --ckpt checkpoints/abot_recon.safetensors \
   --attention-backend auto \
-  --no-loop-closure
+  --out-dir outputs/pose/kitti
 ```
 
-This minimal example performs one causal pass and writes the raw camera trajectory, adjacent relative poses, local point maps, confidence maps, and run metadata. See [Optional loop closure](#optional-loop-closure) for trajectory refinement on sequences with revisited regions.
+Complete commands for every method, reset policy, loop mode, and custom image sequence are in [relpose/README.md](relpose/README.md).
 
-Useful output controls:
+## Dense-Reconstruction Evaluation
 
-| Option | Effect |
-|---|---|
-| `--save-world-points` | Transform local point maps using the final trajectory and save a global point cloud |
-| `--no-save-local-points` | Skip per-frame local point maps |
-| `--no-save-confidence` | Skip confidence maps |
-| `--confidence-threshold T` | Mask points below confidence `T` in `[0, 1]` |
-| `--loop-closure` / `--no-loop-closure` | Enable or disable optional loop-closure refinement; enabled by default |
-| `--start`, `--end`, `--stride` | Select frames from the ordered input stream |
-| `--dense-stride N` | Estimate every selected-frame pose but save dense outputs every `N` frames |
-| `--max-frames N` | Set the maximum supported stream length; default: `22000` |
-
-### Python API
-
-```python
-from pathlib import Path
-from abot_recon import ABotRecon
-
-images = sorted(Path("examples/images").glob("*.jpg"))
-
-model = ABotRecon.from_pretrained(
-    "acvlab/ABot-Recon",
-    device="cuda",
-    attention_backend="auto",
-    loop_closure=False,
-)
-
-result = model.infer(images)
-
-trajectory = result.camera_poses
-relative_poses = result.relative_poses
-local_points = result.local_points
-confidence = result.confidence
-```
-
-The checkpoint is downloaded once and then loaded from the Hugging Face cache.
-For offline inference, replace the repository ID with a local checkpoint path.
-
-Set `output_world_points=True` to return point maps transformed by the final trajectory. Use `dense_output_indices` when dense geometry is needed for only a subset of frames.
-
-## Optional loop closure
-
-The learned model does not depend on loop closure. When a sequence contains useful revisits, the optional backend retrieves candidate frame pairs with DINOv2-SALAD descriptors, predicts relative-pose constraints with ABot-Recon, and refines the trajectory through sparse pose-graph optimization.
-
-Install the optional dependencies and download the retrieval checkpoints:
+Run the report protocol on all three datasets:
 
 ```bash
-pip install -e ".[loop]"
-python scripts/download_loop_assets.py --output-dir checkpoints/loop
-```
-
-Expected files:
-
-```text
-checkpoints/
-├── abot_recon.safetensors
-└── loop/
-    ├── dino_salad.ckpt
-    └── dinov2_vitb14_pretrain.pth
-```
-
-Run inference with loop closure:
-
-```bash
-python demo.py \
-  --image-dir examples/images \
-  --output-dir outputs/demo_loop \
+bash scripts/run_mv_recon_stride1_suite.sh \
+  --method abot_recon \
+  --ckpt checkpoints/abot_recon.safetensors \
+  --gpu 0 \
+  --align sim3 \
   --attention-backend auto \
-  --loop-closure
+  --oxford-metric-interval 10 \
+  --out-root outputs/mv_recon/abot_recon
 ```
 
-When loop closure is enabled, `camera_poses` stores the refined trajectory, while `camera_poses_noloop` preserves the raw streaming prediction.
+Dense reconstruction always disables loop closure. For Oxford, every image is still forwarded to the model; `--oxford-metric-interval 10` only selects the TLS metric frames. Use `scripts/run_mv_recon_protocol.sh` for one dataset and `scripts/run_all_models_mv_recon.sh` for the complete model matrix. See [mv_recon/README.md](mv_recon/README.md) for all model commands.
 
-## Outputs
+## Reproducibility Contract
 
-The exact set of files follows the selected output options:
+Formal launchers record the command, checkpoint SHA256, source revision, resolved input shape and dtype, processed frame count, and runtime manifest. Strict protocol validation rejects wrong strides, Oxford metric IDs, alignment, resize mode, precision, voxel size, or F1 thresholds. The full protocol is documented in [README_ONLINE_EVAL_PROTOCOL.md](README_ONLINE_EVAL_PROTOCOL.md).
 
-```text
-outputs/demo/
-├── camera_poses.npy
-├── relative_poses.npy
-├── camera_poses_noloop.npy
-├── relative_poses_noloop.npy
-├── camera_poses_loop.npy       # only with loop closure
-├── relative_poses_loop.npy     # only with loop closure
-├── local_points.pt             # enabled by default
-├── world_points.pt             # with --save-world-points
-├── colors.pt                   # RGB aligned with saved point maps
-├── confidence.pt               # enabled by default
-├── confidence_mask.pt          # enabled by default
-└── metadata.json
-```
-
-Local point maps remain in their corresponding camera coordinate systems. World points are generated using the final selected trajectory.
-
-### Visualization
+Before a long run, validate command construction and Hydra composition:
 
 ```bash
-python scripts/export_reconstruction_ply.py \
-  --poses outputs/demo/camera_poses.npy \
-  --points outputs/demo/local_points.pt \
-  --colors outputs/demo/colors.pt \
-  --output outputs/demo/reconstruction.ply \
-  --bev-output outputs/demo/trajectory_bev.png
+bash scripts/run_mv_recon_stride1_suite.sh \
+  --method abot_recon \
+  --ckpt checkpoints/abot_recon.safetensors \
+  --out-root outputs/config_check \
+  --config-check
 ```
-
-This creates an RGB point-cloud PLY and a separate BEV trajectory PNG.
-
-## Evaluation
-
-Camera-pose and dense-reconstruction protocols are maintained on the `eval` branch:
-
-```bash
-git switch eval
-```
-
-That branch documents dataset preparation, third-party checkpoints, benchmark commands, and metric aggregation. Dense reconstruction is evaluated without loop closure to match the paper protocol.
 
 ## Tests
 
 ```bash
 pytest -q
+ABOT_RECON_REQUIRE_CUROPE=1 pytest -q tests/test_curope_parity.py
+pytest -q mv_recon/tests relpose/tests
+bash -n scripts/*.sh
+sha256sum -c third_party_patches/SHA256SUMS
 ```
 
-CUDA-specific and real-checkpoint tests are available separately:
+Real-checkpoint tests for both paged and SDPA attention are opt-in:
 
 ```bash
-ABOT_RECON_REQUIRE_CUROPE=1 pytest -q tests/test_curope_parity.py
-
 ABOT_RECON_CHECKPOINT=checkpoints/abot_recon.safetensors \
 ABOT_RECON_IMAGE_DIR=examples/images \
 ABOT_RECON_DEVICE=cuda \
-pytest -q tests/integration/test_real_checkpoint.py
+pytest -q tests/integration/test_real_checkpoint.py \
+  tests/integration/test_eval_adapter_real_checkpoint.py
 ```
 
-## Release status
-- [ ] Training code and recipes
-- [x] Public model checkpoint
-- [x] Inference and evaluation code
+## License
 
-## Citation
-
-```bibtex
-@article{abot_recon2026,
-  title         = {Revisiting Local Context for Long-Horizon Streaming 3D Reconstruction},
-  author        = {{AMAP CV Lab}},
-  journal       = {arXiv preprint arXiv:TBD},
-  year          = {2026},
-  eprint        = {TBD},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.CV},
-  doi           = {TBD},
-  url           = {https://arxiv.org/abs/TBD}
-}
-```
-
-## License and acknowledgements
-
-Source code is released under the [Apache License 2.0](LICENSE). Model weights are governed by [MODEL_LICENSE.md](MODEL_LICENSE.md), and third-party components are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-ABot-Recon builds on Pi3 and draws inspiration from CroCo, DUSt3R, DINOv2, SALAD, FlashInfer, LingBot-Map, HorizonStream, and LongStream. We thank their authors and contributors.
+Repository code is released under the [Apache License 2.0](LICENSE), released model weights under [MODEL_LICENSE.md](MODEL_LICENSE.md), and component-level origins and terms by [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Review all upstream model and dataset licenses before redistributing third-party assets.

@@ -224,12 +224,7 @@ def apply_loop_closure(
         )
         local_paths = [Path(image_paths[index]) for index in frame_ids]
         reinference_started = time.perf_counter()
-        local_poses = model.infer_paths(
-            local_paths,
-            output_local_points=False,
-            output_world_points=False,
-            output_confidence=False,
-        )[
+        local_poses = model.infer_paths(local_paths, output_points=False, output_confidence=False)[
             "camera_poses"
         ]
         reinference_seconds += time.perf_counter() - reinference_started

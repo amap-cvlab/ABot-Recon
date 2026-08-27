@@ -1,0 +1,36 @@
+# @package _global_
+# Formal Oxford Spires protocol: stride-1 model forward; TLS point-cloud
+# alignment and metrics use frame_ids 0,10,20,... from the dataset adapter.
+
+defaults:
+  - override /data: mv_recon
+
+name: mv_recon_oxford_stride1
+eval_models: []
+eval_datasets: [Oxford-Spires-S1-I10]
+
+device: cuda
+load_img_size: 518
+lingbot_prepare_interpolation: pil_lanczos
+lingbot_expected_input_hw: [378, 518]
+nearest_depth_to_gt: true
+pointmap_resize_mode: nearest
+pi3_pc_world_source: points
+pc_align_with_scale: true
+pc_alignment_depth_max: null
+pc_alignment_depth_max_by_model:
+  horizonstream: 80.0
+# Oxford's primary reported F1 metric is F1@4m; retain F1@2m as a diagnostic.
+pc_eval_threshold: 4.0
+pc_eval_thresholds: [2.0, 4.0]
+
+kf_every: 1
+rebuild_seq_id_map: false
+max_eval_frames: 0
+save_suffix: oxford_s1_i10
+save_ply: true
+save_ply_seq_names: null
+save_ply_max_seqs: 2
+save_ply_max_points: 500000
+save_traj_bev: false
+require_runtime_manifest: true

@@ -11,3 +11,9 @@ checkpoints/
 examples/images/
 
 *.so
+data/7scenes
+data/kitti-long
+data/oxford_spires
+data/tum-dynamics
+data/vbr-long
+data/dataset_cache/

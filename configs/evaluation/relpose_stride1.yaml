@@ -1,0 +1,67 @@
+# @package _global_
+
+defaults:
+  - override /data: relpose-distance
+
+name: relpose_stride1
+
+eval_models:
+  - cut3r
+  - ttt3r
+  - longstream
+  - infinitevggt
+  - ovggt
+  - stream3r_window5
+  - horizonstream
+  - lingbot_map
+  - abot_recon
+
+eval_datasets:
+  - kitti-long
+  - vbr-long
+  - oxford_spires_processed-long
+
+# A single comparison protocol: every available frame, Sim3 per sequence,
+# delta=1 RPE on the forwarded sequence.
+data:
+  kitti-long:
+    pose_eval_stride: 1
+  vbr-long:
+    pose_eval_stride: 1
+  oxford_spires_processed-long:
+    pose_eval_stride: 1
+
+device: cuda
+verbose: false
+seed: 42
+save_suffix: stride1_sim3
+resume_existing: true
+# Formal comparison must never publish an average after silently skipping an
+# OOM/degenerate sequence.
+require_complete_eval: true
+# Debug/smoke only. Zero means the full sequence and is the formal protocol.
+max_eval_frames: 0
+# Optional forward-only wall-clock timing. Adapter image loading, RGB
+# preprocessing, pose conversion, metrics and file writes are outside timing.
+measure_forward_fps: false
+forward_timing_preload_limit: 256
+forward_timing_warmup_runs: 1
+
+model:
+  lingbot_map:
+    cfg:
+      preprocess_mode: long_pose_official
+      max_frame_num: 22000
+
+  horizonstream:
+    cfg:
+      # HorizonStream's released minimal-inference example uses FP16 autocast.
+      amp_dtype: fp16
+
+  abot_recon:
+    cfg:
+      ckpt: checkpoints/abot_recon.safetensors
+      device: ${device}
+      attention_backend: auto
+      max_frames: 22000
+      num_frames_cap: 22000

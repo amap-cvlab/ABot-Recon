@@ -1,0 +1,50 @@
+# Horizon paper Table-4 style: 7x seq-01, typically kf_every=1, F1@0.25 (see get_dataset_eval_options).
+7scenes-hs-paper:
+  cfg:
+    _target_: datasets.sevenscenes.SevenScenes
+    split: seq01
+    SEVENSCENES_DIR: data/7scenes
+    load_img_size: ${load_img_size}
+    cache_file: data/dataset_cache/7scenes_hs_paper_seq01_cache.npy
+  sampling:
+    strategy: stride
+    kf_every: 1
+  seq_id_map: datasets/seq-id-maps/7scenes_hs-paper_seq-id-map-kf1.json
+
+
+# All original RGB frames from the same eight TUM Freiburg3 dynamic sequences.
+# RGB/pose and RGB/depth are independently associated by timestamp; no temporal
+# frame sampling is applied. Unmatched depth frames are forwarded but masked out
+# of point-cloud alignment and metrics.
+TUM-Dynamics-Full:
+  cfg:
+    _target_: datasets.tum_dynamics.TUMDynamicsFull
+    TUM_DIR: data/tum-dynamics/tum
+    load_img_size: 0
+    depth_max_dt: 0.005
+    pose_max_dt: 0.02
+    depth_min: 0.001
+    depth_max: 5.0
+    min_depth_match_ratio: 0.8
+  sampling:
+    strategy: all
+    kf_every: 1
+  seq_id_map: datasets/seq-id-maps/TUM-Dynamics-Full_mv-recon_seq-id-map-all.json
+
+# Oxford Spires outdoor TLS reconstruction protocol. Every rectified RGB frame
+# is forwarded (stride 1); TLS-derived depth and dense point metrics are kept at
+# source frame IDs 0,10,20,... by the dataset's metric_indices contract.
+Oxford-Spires-S1-I10:
+  cfg:
+    _target_: datasets.oxford_spires_mv_recon.OxfordSpiresMVRecon
+    image_root: data/oxford_spires/processed_sequences
+    gt_root: data/oxford_spires/pc
+    load_img_size: 518
+    expected_interval: 10
+    depth_min: 0.1
+    depth_max: 200.0
+    alignment_depth_max: 80.0
+  sampling:
+    strategy: all
+    kf_every: 1
+  seq_id_map: datasets/seq-id-maps/Oxford-Spires-S1-I10_mv-recon_seq-id-map-all.json

@@ -1,0 +1,64 @@
+diff --git a/longstream/streaming/refresh.py b/longstream/streaming/refresh.py
+index 212e6a5..0d8c6d7 100644
+--- a/longstream/streaming/refresh.py
++++ b/longstream/streaming/refresh.py
+@@ -15,6 +15,12 @@ _SCALAR_OUTPUT_KEYS = {
+     "predicted_scale_factor",
+     "global_scale",
+ }
++_DENSE_OUTPUT_KEYS = {
++    "world_points",
++    "world_points_conf",
++    "depth",
++    "depth_conf",
++}
+ 
+ 
+ def _refresh_intervals(refresh: int) -> int:
+@@ -40,6 +46,8 @@ def _append_batch_output(
+     output: Dict[str, Any],
+     actual_frames: int,
+     slice_start: int,
++    global_start: int,
++    dense_output_indices=None,
+ ) -> None:
+     for key in _SEQUENCE_OUTPUT_KEYS:
+         value = output.pop(key, None)
+@@ -48,7 +56,19 @@ def _append_batch_output(
+         if value.ndim < 2 or value.shape[1] != actual_frames:
+             del value
+             continue
+-        cpu_value = value[:, slice_start:].detach().cpu()
++        value = value[:, slice_start:]
++        if key in _DENSE_OUTPUT_KEYS and dense_output_indices is not None:
++            local_indices = [
++                frame_index - (global_start + slice_start)
++                for frame_index in dense_output_indices
++                if global_start + slice_start <= frame_index < global_start + actual_frames
++            ]
++            if not local_indices:
++                del value
++                continue
++            select = torch.as_tensor(local_indices, device=value.device, dtype=torch.long)
++            value = value.index_select(1, select)
++        cpu_value = value.detach().cpu()
+         stitched_tensors.setdefault(key, []).append(cpu_value)
+         del value
+ 
+@@ -85,6 +105,7 @@ def run_batch_refresh(
+     keyframe_stride: int,
+     refresh: int,
+     rel_pose_cfg,
++    dense_output_indices=None,
+ ):
+     B, S = images.shape[:2]
+     device = _model_device(model)
+@@ -149,6 +170,8 @@ def run_batch_refresh(
+             batch_output,
+             actual_frames=end_frame - start_frame,
+             slice_start=0 if batch_idx == 0 else 1,
++            global_start=start_frame,
++            dense_output_indices=dense_output_indices,
+         )
+         del batch_output
+         del batch_images
