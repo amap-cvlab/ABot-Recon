@@ -271,3 +271,4 @@ We would also like to express our sincere gratitude to Zengye Ge, Hongyu Pan, Zh
 ## Other Works from Our Group
 
 - [ABot-Earth](https://abot-earth.amap.com/)
+- [GS-Voxel](https://arxiv.org/abs/2608.17988)
