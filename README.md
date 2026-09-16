@@ -26,6 +26,7 @@
 
 ## 📣 News
 
+- **2026-09-16:** Community port: The [AXERA-TECH team](https://github.com/AXERA-TECH/ABot-Recon-Axera) has ported ABot-Recon to the Axera AX650N NPU, supporting both AXCL-based PCIe inference and on-device inference on AX650N boards. The release includes precompiled AX650N models, Docker images, and a web-based mapping service. Model files are available on [Hugging Face](https://huggingface.co/AXERA-TECH/ABot-Recon-Axera). Thanks to the AXERA-TECH team for this hardware adaptation!
 - **2026-08-31:** Thanks to the Hugging Face team, an interactive [ABot-Recon Demo](https://huggingface.co/spaces/acvlab/abot-recon-streaming-3d) is now available online. Try it out!
 
 ## Why local context?

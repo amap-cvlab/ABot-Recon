@@ -26,6 +26,7 @@
 
 ## 📣 最新动态
 
+- **2026-09-16：** 社区适配：[AXERA-TECH 团队](https://github.com/AXERA-TECH/ABot-Recon-Axera) 已将 ABot-Recon 移植至 Axera AX650N NPU，支持基于 AXCL 的 PCIe 推理和 AX650N 板端推理。该项目提供预编译的 AX650N 模型、Docker 镜像与 Web 建图服务；模型文件可从 [Hugging Face](https://huggingface.co/AXERA-TECH/ABot-Recon-Axera) 下载。感谢 AXERA-TECH 团队完成此次硬件适配！
 - **2026-08-31：** 感谢 Hugging Face 团队的支持，ABot-Recon [在线 Demo](https://huggingface.co/spaces/acvlab/abot-recon-streaming-3d) 现已上线，欢迎体验！
 
 ## 为什么使用局部上下文？
@@ -270,3 +271,4 @@ ABot-Recon 基于 Pi3 构建，并参考了 CroCo、DUSt3R、DINOv2、SALAD、Fl
 ## 我们组的其他工作
 
 - [ABot-Earth](https://abot-earth.amap.com/)
+- [GS-Voxel](https://arxiv.org/abs/2608.17988)
