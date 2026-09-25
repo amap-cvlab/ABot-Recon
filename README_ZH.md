@@ -26,6 +26,7 @@
 
 ## 📣 最新动态
 
+- **2026-09-25：** 微调代码已发布于 [`train`](https://github.com/amap-cvlab/ABot-Recon/tree/train) 分支，支持 18 个数据源及混合训练、EMA、验证与续训，并提供示例配置。详见分支 [README](https://github.com/amap-cvlab/ABot-Recon/blob/train/README_ZH.md)。
 - **2026-09-16：** 社区适配：[AXERA-TECH 团队](https://github.com/AXERA-TECH/ABot-Recon-Axera) 已将 ABot-Recon 移植至 Axera AX650N NPU，支持基于 AXCL 的 PCIe 推理和 AX650N 板端推理。该项目提供预编译的 AX650N 模型、Docker 镜像与 Web 建图服务；模型文件可从 [Hugging Face](https://huggingface.co/AXERA-TECH/ABot-Recon-Axera) 下载。感谢 AXERA-TECH 团队完成此次硬件适配！
 - **2026-08-31：** 感谢 Hugging Face 团队的支持，ABot-Recon [在线 Demo](https://huggingface.co/spaces/acvlab/abot-recon-streaming-3d) 现已上线，欢迎体验！
 
@@ -240,7 +241,7 @@ pytest -q tests/integration/test_real_checkpoint.py
 
 ## 发布状态
 
-- [ ] 训练代码与配置（计划于 9 月 30 日前发布）
+- [x] 训练代码与配置（计划于 9 月 30 日前发布）
 - [x] 公开模型权重
 - [x] 推理与评测代码
 
