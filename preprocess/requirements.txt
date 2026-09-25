@@ -1,0 +1,8 @@
+# Install separately from training; mesh-depth rendering needs Linux EGL/OpenGL.
+numpy
+opencv-python-headless>=4.8,<5
+Pillow
+scipy
+tqdm
+pyrender
+trimesh

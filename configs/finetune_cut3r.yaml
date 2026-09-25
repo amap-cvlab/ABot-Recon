@@ -1,0 +1,73 @@
+# Standalone 32-frame example. All unspecified settings use TrainConfig defaults.
+# Install with: pip install -e '.[train]'
+pretrained: checkpoints/abot_recon.safetensors
+output_dir: outputs/finetune_cut3r
+# Existing validation needs held-out TartanGround data; don't implicitly require it here.
+validation_enabled: false
+
+data:
+  num_frames: 32
+  dl3dv:
+    weight: 0
+  tartanground:
+    weight: 0
+
+  # See each source's preprocessing requirements below and in docs/training_datasets.md.
+  # Set the corresponding processed-data root and weight > 0 to enable.
+  tartanair:
+    root: /path/to/processed_tartanair
+    weight: 1
+  pointodyssey:
+    root: /path/to/processed_pointodyssey
+    weight: 0
+  spring:
+    root: /path/to/processed_spring
+    weight: 0
+  mvs_synth:
+    root: /path/to/processed_mvs_synth
+    weight: 0
+  dynamic_replica:
+    root: /path/to/processed_dynamic_replica
+    weight: 0
+  uasol:
+    root: /path/to/processed_uasol
+    weight: 0
+  arkit_hr:
+    root: /path/to/processed_arkitscenes_highres
+    weight: 0
+  wildrgbd:
+    root: /path/to/processed_wildrgbd
+    weight: 0
+  unreal4k_seq:
+    root: /path/to/processed_unreal4k
+    weight: 0
+  scannet:
+    # Run both preprocess_scannet.py and generate_set_scannet.py.
+    root: /path/to/processed_scannet
+    weight: 0
+  waymo:
+    # Final cropped output plus CUT3R's invalid_files.h5 (not output_dir/tmp).
+    root: /path/to/processed_waymo
+    weight: 0
+  vkitti2:
+    # Extract CUT3R's published preprocessed archive; not the raw VKITTI2 tree.
+    root: /path/to/processed_vkitti
+    weight: 0
+  hypersim_seq:
+    # Standard CUT3R HyperSim output; scene-level pose-graph sampling.
+    root: /path/to/processed_hypersim
+    weight: 0
+  blendedmvs_seq:
+    # Standard CUT3R BlendedMVS output plus its downloaded new_overlap.h5.
+    root: /path/to/processed_BlendedMVS
+    weight: 0
+  arkit:
+    # Run preprocess_arkitscenes.py and generate_set_arkitscenes.py.
+    root: /path/to/processed_arkitscenes
+    highres_root: /path/to/processed_arkitscenes_highres
+    camera_only: true  # Active development recipe; false also supports RGB-D.
+    weight: 0
+  scannetpp_seq:
+    # Use preprocess/preprocess_scannet_seq.py, not CUT3R's pair export.
+    root: /path/to/processed_scannetpp_seq
+    weight: 0

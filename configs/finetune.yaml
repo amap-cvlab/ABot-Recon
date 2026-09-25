@@ -1,0 +1,97 @@
+# ABot-Recon public fine-tuning recipe.
+# [SOURCE] labels the selected default; alternatives listed after it are supported
+# release options and do not claim that every alternative was used in that run.
+# [RELEASE] marks a fine-tuning example choice, not the complete paper recipe.
+# This example enables two sources; relative weights 100000:75000 become 4:3.
+
+pretrained: checkpoints/abot_recon.safetensors   # local released checkpoint; download before running
+output_dir: outputs/finetune                    # output directory; checkpoint-NNNN is created below it
+resume: null                                    # null | path to checkpoint-NNNN (restores optimizer/scheduler/RNG/EMA)
+auto_resume: true                               # true finds the latest complete checkpoint when resume is null
+skip_pretrained_when_resume: true               # [SOURCE] true avoids reloading pretrained before full-state resume
+resume_schedule: strict                         # strict | restart; restart explicitly starts a new cycle if the training plan changed
+
+epochs: 20                                      # [SOURCE] positive integer
+steps_per_epoch: 800                            # micro-batches per epoch; divisible by gradient_accumulation_steps
+gradient_accumulation_steps: 1                  # [SOURCE] positive integer; micro-batches per optimizer step
+trainable_scope: all                            # [SOURCE] all (default: every non-encoder parameter) | heads | rot_correction_only; encoder is always frozen
+enable_confidence: false                        # false (default: confidence branch frozen/skipped) | true (train with BCE below)
+
+learning_rate: 1.0e-6                           # [RELEASE] positive peak LR for ordinary trainable parameters; user-configurable
+gate_learning_rate: 1.0e-6                      # [RELEASE] positive peak LR for gate group (used by scope=heads/all)
+corr_learning_rate: 1.0e-6                      # [RELEASE] positive peak LR for temporal_rotation_refinement
+confidence_learning_rate: 1.0e-6                # positive peak LR; used only when enable_confidence=true
+weight_decay: 5.0e-2                            # [SOURCE] AdamW decay; bias and 1-D parameters use zero decay
+adam_beta1: 0.9                                 # [SOURCE] AdamW beta1 in [0,1)
+adam_beta2: 0.999                               # matches the effective development AdamW beta2
+onecycle_pct_start: 0.05                        # [SOURCE] OneCycle warm-up fraction in (0,1)
+onecycle_div_factor: 25.0                       # [SOURCE] initial LR = peak LR / div_factor
+onecycle_final_div_factor: 2.0                  # [SOURCE] final LR divisor relative to initial LR
+max_grad_norm: 1.0                              # [SOURCE] positive gradient clipping norm; null is not supported
+max_loss: 10.0                                  # [SOURCE] finite losses above this value synchronously skip the update
+mixed_precision: bf16                           # [SOURCE] no | fp16 | bf16
+
+seed: 1111                                      # [SOURCE] global Python/NumPy/PyTorch seed (random_seed)
+data_seed: 666                                  # [SOURCE] epoch sampler/mixer seed (train.base_seed)
+local_window_frames: 12                         # [SOURCE] released checkpoint context; positive integer
+max_frames: 22000                               # [SOURCE] temporal RoPE3D frame-index and paged-KV total-frame capacity; must be >= data.num_frames
+
+checkpoint_every_epochs: 1                     # positive integer; the final epoch is always saved
+validate_every_epochs: 1                       # [SOURCE] positive integer
+validation_steps: -1                           # -1: full s1/s6 validation; positive: per-rank batch cap per stream for debugging
+validation_enabled: true                       # true | false; set false when no held-out TartanGround scenes are available
+
+ema_enabled: true                              # [SOURCE] true | false
+ema_decay: 0.999                               # [SOURCE] EMA decay in [0,1)
+ema_trainable_only: true                       # [SOURCE] true stores only trainable parameters; false stores all
+eval_with_ema: true                            # [SOURCE] true | false; temporarily swaps EMA weights for validation
+
+loss:
+  camera_weight: 0.1                           # [SOURCE] multiplier applied to the complete camera objective
+  camera_alpha_translation: 100.0              # [SOURCE] relative-translation Huber weight
+  camera_alpha_rotation: 1.0                   # [SOURCE] relative-rotation geodesic weight
+  camera_max_pair_distance: 11                 # [SOURCE] positive max frame gap; <=0 keeps every allowed pair
+  camera_pair_mode: causal_upper               # [SOURCE] causal_upper | dense
+  camera_rotation_gap_weight: pow0.75           # [SOURCE] none | sqrt | pow0.75 | linear
+  camera_translation_gap_weight: none          # [SOURCE] none | sqrt | pow0.75 | linear
+
+  camera_alpha_corr_magnitude: 1.0e-3           # [SOURCE] rotation_residual L2 magnitude regularizer
+  camera_alpha_corr_smooth: 1.0e-3              # [SOURCE] temporal rotation_residual smoothness regularizer
+  confidence_weight: 0.05                       # [SOURCE] >=0; BCE multiplier when enable_confidence=true
+  confidence_error_threshold: 0.02              # [SOURCE] >0; aligned per-pixel L1 threshold for positive targets
+  confidence_invalid_as_zero: true              # true supervises invalid-depth pixels as confidence zero
+
+data:
+  num_frames: 32                               # training clip length; validation independently uses 128 frames at strides 1 and 6
+  height: 280                                  # [SOURCE] positive, divisible by patch size 14
+  width: 504                                   # [SOURCE] positive, divisible by patch size 14
+  aug_crop: 16                                 # [SOURCE] integer >=0; random crop/resize augmentation range
+  aug_focal: 0.9                               # [SOURCE] float in (0,1]; minimum retained center-crop scale
+  preserve_fov_prob: 0.9                       # [SOURCE] probability in [0,1] of width-fit crop/pad geometry
+  principal_align_skip_prob: 0.0              # Per-sequence probability of skipping the initial principal-centered crop; validation always aligns
+  sequence_consistent_aug_prob: 0.2            # [SOURCE] 20% share geometric and photometric params across the sequence
+
+  dl3dv:
+    root: /path/to/processed_dl3dv_ours         # [RELEASE] processed DL3DV root
+    weight: 4.0                                # [RELEASE] source relative weight 100000 / 75000 = 4 / 3
+    batch_size: 1                              # [SOURCE] positive per-rank batch size
+    num_workers: 4                             # [SOURCE] integer >=0
+    pin_memory: true                           # true | false
+    z_far: 0.0                                 # [SOURCE] <=0 disables far-depth clipping
+    min_interval: 1                            # loader option; DL3DV sampling lower bound
+    max_interval: 20                           # [SOURCE loader] positive temporal interval cap
+    allow_repeat: false                        # [SOURCE] true | false; allow short sequences to repeat frames
+    blacklist: null                            # null=auto root/package file | ""=disabled | explicit text-file path
+
+  tartanground:
+    root: /path/to/processed_TartanGround       # contains one images/depths/cameras/masks directory per sequence
+    weight: 3.0                                # [RELEASE] source relative weight 75000 / 100000 = 3 / 4
+    batch_size: 1                              # [SOURCE] positive per-rank batch size
+    num_workers: 4                             # [SOURCE] integer >=0
+    pin_memory: true                           # true | false
+    z_far: 80.0                                # [SOURCE] depths >=80 are excluded from point supervision
+    min_interval: 1                            # [SOURCE loader] positive default lower bound
+    max_interval: 8                            # [SOURCE loader] positive default upper bound; env overrides still apply
+    exclude_scenes: null                       # null=default held-out set | []=exclude none | explicit scene list
+    eval_scenes: null                          # custom validation IDs must also be listed in exclude_scenes
+    eval_starts_per_scene: 4                   # [SOURCE] positive deterministic validation starts per scene

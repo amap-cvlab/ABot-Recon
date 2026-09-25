@@ -1,0 +1,19 @@
+include LICENSE
+include NOTICE
+include MODEL_LICENSE.md
+include THIRD_PARTY_NOTICES.md
+include README.md README_ZH.md
+include demo.py benchmark_comparison_transparent.png
+include .gitignore
+recursive-include licenses *.txt
+recursive-include configs *.yaml
+recursive-include scripts *.py
+recursive-include docs *.md
+recursive-include preprocess *.py *.md *.txt
+recursive-include tests *.py
+recursive-include abot_recon/modeling/pi3/models/curope *.cpp *.cu setup.py
+
+# Preserve machine-only checks locally, never ship them in release archives.
+exclude configs/finetune_tartanground_skynet.yaml
+exclude tests/integration/check_train_validation.py
+global-exclude *.py[cod] __pycache__ .DS_Store

@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+build/
+dist/
+*.egg-info/
+outputs/
+checkpoints/
+examples/images/
+
+*.so
+
+# Machine-only training config and its private-checkpoint validation helper.
+/configs/finetune_tartanground_skynet.yaml
+/tests/integration/check_train_validation.py

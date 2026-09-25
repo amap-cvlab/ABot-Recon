@@ -1,0 +1,24 @@
+# Structural smoke test only: synthetic data cannot train/evaluate reconstruction quality.
+# Generate it first: python scripts/make_training_sample.py --output examples/training_data --frames 32
+# A real local checkpoint and a supported GPU training environment are still required.
+pretrained: checkpoints/abot_recon.safetensors
+output_dir: outputs/finetune_smoke              # use a fresh directory when repeating this test
+auto_resume: false
+epochs: 1
+steps_per_epoch: 4
+onecycle_pct_start: 0.5                       # short-cycle warm-up fraction for this wiring check only
+validation_enabled: false                     # fixture has no 128-frame held-out validation sequences
+
+data:
+  num_frames: 32
+  dl3dv:
+    weight: 0
+  tartanground:
+    root: examples/training_data/tartanground
+    weight: 1
+    num_workers: 0
+    min_interval: 1
+    max_interval: 1
+    z_far: 80.0
+    exclude_scenes: []
+    eval_scenes: []

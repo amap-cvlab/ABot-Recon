@@ -1,0 +1,19 @@
+# Single-source example for metric RGB-D sequences in the TartanGround layout.
+# See docs/training_datasets.md: reusing the layout also inherits loader policies.
+# No inheritance: omitted fields use TrainConfig defaults (32 frames, 504x280).
+pretrained: checkpoints/abot_recon.safetensors
+output_dir: outputs/finetune_custom
+validation_enabled: false                     # configure an explicit holdout before enabling
+
+data:
+  num_frames: 32
+  dl3dv:
+    weight: 0
+  tartanground:
+    root: /path/to/custom_rgbd_sequences       # <sequence>/{images,depths,cameras,masks}
+    weight: 1
+    z_far: 80.0                               # metres; choose for your data (<=0 disables this cutoff)
+    min_interval: 1
+    max_interval: 1                           # start with adjacent frames; known TG names have env overrides
+    exclude_scenes: []                        # add every eval_scenes ID here when enabling validation
+    eval_scenes: []                           # exact sequence-directory names; no implicit split
