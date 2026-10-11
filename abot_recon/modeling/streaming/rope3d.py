@@ -74,7 +74,8 @@ class RoPE3D(nn.Module):
         super().__init__()
         self.attention_head_dim = attention_head_dim
         self.patch_size = patch_size
-        self.max_seq_len = max_seq_len
+        self.max_seq_len = int(max_seq_len)
+        self.theta = float(theta)
 
         if fhw_dim is not None:
             t_dim, h_dim, w_dim = fhw_dim
@@ -108,6 +109,32 @@ class RoPE3D(nn.Module):
     def clear_forward_freqs_cache(self) -> None:
         """Drop cached ``forward`` outputs (e.g. after resolution / device change in same process)."""
         self._freqs_fwd_cache.clear()
+
+    def _ensure_rows(self, rows: int) -> None:
+        """Grow the positional tables so spatial (H/W) coordinates stay in range.
+
+        ``max_seq_len`` bounds the *temporal* coordinate, but the height/width
+        coordinates are indexed by ``patch_start_idx + patch_grid``, which can be
+        larger (e.g. 5 + 36 = 41 rows for a 280x504 input).  Rows beyond
+        ``max_seq_len`` are never reachable through the temporal coordinate,
+        which validates its own range.
+        """
+        rows = int(rows)
+        if rows <= int(self.freqs.shape[0]):
+            return
+        t_dim, h_dim, w_dim = self.fhw_dim
+        freqs = [
+            get_1d_rotary_pos_embed(
+                dim,
+                rows,
+                self.theta,
+                use_real=False,
+                repeat_interleave_real=False,
+                freqs_dtype=torch.float64,
+            )
+            for dim in (t_dim, h_dim, w_dim)
+        ]
+        self.freqs = torch.cat(freqs, dim=1).to(self.freqs.device)
 
     def forward(
         self,
@@ -152,18 +179,29 @@ class RoPE3D(nn.Module):
         f_start: int,
         f_end: Optional[int],
     ) -> torch.Tensor:
-        freqs_stored = self.freqs.to(device)
         t_dim, h_dim, w_dim = self.fhw_dim
+        self._ensure_rows(int(patch_start_idx) + max(int(pph), int(ppw)))
+        freqs_stored = self.freqs.to(device)
         freqs = freqs_stored.split_with_sizes(
             [t_dim // 2, h_dim // 2, w_dim // 2],
             dim=1,
         )
 
         if f_end is not None:
-            ppf = f_end - f_start
-            frame_slice = slice(f_start, f_end)
+            frame_end = int(f_end)
+            ppf = frame_end - int(f_start)
+            frame_slice = slice(int(f_start), frame_end)
         else:
+            ppf = int(ppf)
+            frame_end = ppf
             frame_slice = slice(0, ppf)
+        if int(f_start) < 0 or ppf <= 0 or frame_end > self.max_seq_len:
+            raise RuntimeError(
+                "RoPE3D temporal index out of range: frame indices "
+                f"{int(f_start)}..{frame_end} exceed the configured stream length "
+                f"{self.max_seq_len}. Raise `max_frames` (CLI: --max-frames) so it covers "
+                "the number of input frames."
+            )
 
         if patch_start_idx > 0:
             freqs_special_f = (

@@ -115,7 +115,7 @@ python demo.py \
 | `--loop-closure` / `--no-loop-closure` | 开启或关闭可选回环优化；默认开启 |
 | `--start`、`--end`、`--stride` | 从排序后的输入流中选择帧 |
 | `--dense-stride N` | 估计每个选中帧的位姿，但每隔 `N` 帧保存一次稠密输出 |
-| `--max-frames N` | 设置支持的最大序列长度，默认为 `22000` |
+| `--max-frames N` | 设置支持的最大序列长度，默认为 `22000`。它是容量上限而非截帧开关：输入不会被截断，序列更长时会在推理开始前直接报错（用 `--start`/`--end`/`--stride` 选择更少的帧） |
 
 ### Python API
 
