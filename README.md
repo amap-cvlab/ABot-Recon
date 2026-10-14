@@ -26,6 +26,7 @@
 
 ## 📣 News
 
+- **2026-10-14:** We have added visualization scripts for rendering inference results into point-cloud videos and bird's-eye views of camera trajectories and point clouds. See the [`visualization`](visualization/) folder for usage and configuration.
 - **2026-09-25:** Fine-tuning code is now on the [`train`](https://github.com/amap-cvlab/ABot-Recon/tree/train) branch, with 18 data sources, mixing/EMA/validation/resume, and example configs. See the branch [README](https://github.com/amap-cvlab/ABot-Recon/blob/train/README.md) to get started.
 - **2026-09-16:** Community port: The [AXERA-TECH team](https://github.com/AXERA-TECH/ABot-Recon-Axera) has ported ABot-Recon to the Axera AX650N NPU, supporting both AXCL-based PCIe inference and on-device inference on AX650N boards. The release includes precompiled AX650N models, Docker images, and a web-based mapping service. Model files are available on [Hugging Face](https://huggingface.co/AXERA-TECH/ABot-Recon-Axera). Thanks to the AXERA-TECH team for this hardware adaptation!
 - **2026-08-31:** Thanks to the Hugging Face team, an interactive [ABot-Recon Demo](https://huggingface.co/spaces/acvlab/abot-recon-streaming-3d) is now available online. Try it out!

@@ -26,6 +26,7 @@
 
 ## 📣 最新动态
 
+- **2026-10-14：** 新增推理结果可视化脚本，支持生成点云渲染视频，以及鸟瞰视角的相机轨迹图和点云图。使用方法与参数配置请参阅 [`visualization`](visualization/) 文件夹。
 - **2026-09-25：** 微调代码已发布于 [`train`](https://github.com/amap-cvlab/ABot-Recon/tree/train) 分支，支持 18 个数据源及混合训练、EMA、验证与续训，并提供示例配置。详见分支 [README](https://github.com/amap-cvlab/ABot-Recon/blob/train/README_ZH.md)。
 - **2026-09-16：** 社区适配：[AXERA-TECH 团队](https://github.com/AXERA-TECH/ABot-Recon-Axera) 已将 ABot-Recon 移植至 Axera AX650N NPU，支持基于 AXCL 的 PCIe 推理和 AX650N 板端推理。该项目提供预编译的 AX650N 模型、Docker 镜像与 Web 建图服务；模型文件可从 [Hugging Face](https://huggingface.co/AXERA-TECH/ABot-Recon-Axera) 下载。感谢 AXERA-TECH 团队完成此次硬件适配！
 - **2026-08-31：** 感谢 Hugging Face 团队的支持，ABot-Recon [在线 Demo](https://huggingface.co/spaces/acvlab/abot-recon-streaming-3d) 现已上线，欢迎体验！
