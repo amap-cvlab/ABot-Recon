@@ -116,7 +116,7 @@ Useful output controls:
 | `--loop-closure` / `--no-loop-closure` | Enable or disable optional loop-closure refinement; enabled by default |
 | `--start`, `--end`, `--stride` | Select frames from the ordered input stream |
 | `--dense-stride N` | Estimate every selected-frame pose but save dense outputs every `N` frames |
-| `--max-frames N` | Set the maximum supported stream length; default: `22000` |
+| `--max-frames N` | Set the maximum supported stream length; default: `22000`. It is a capacity, not a frame cap: the input is never truncated, and a longer stream raises an error before inference starts (select fewer frames with `--start`/`--end`/`--stride`) |
 
 ### Python API
 

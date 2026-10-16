@@ -148,6 +148,13 @@ class ReleasedABotReconModel(torch.nn.Module):
         dense_output_indices: list[int] | None = None,
         image_observer: Callable[[torch.Tensor], None] | None = None,
     ) -> dict[str, torch.Tensor]:
+        if len(paths) > self.config.max_frames:
+            raise ValueError(
+                f"Received {len(paths)} frames but `max_frames` is {self.config.max_frames}, "
+                "which bounds the supported stream length (RoPE positional table and paged KV "
+                "capacity). Raise `max_frames` (CLI: --max-frames) to cover the whole input, or "
+                "select fewer frames (CLI: --start/--end/--stride)."
+            )
         self.reset()
         self._image_observer = image_observer
         output_keys = ["camera_poses"]
