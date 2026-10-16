@@ -52,44 +52,6 @@ def _log_pi3_streaming_attn_mode(
     )
 
 
-# Per-frame dense outputs: kept for every dense frame and only concatenated
-# after the whole stream has run (see ``select_frame_outputs``).
-DENSE_OUTPUT_KEYS = frozenset({"points", "local_points", "conf", "global_points"})
-
-
-def select_frame_outputs(
-    pred: Dict[str, Any],
-    *,
-    skip_state: Iterable[str] = (),
-    allowed: Optional[Iterable[str]] = None,
-    dense_keys: Iterable[str] = DENSE_OUTPUT_KEYS,
-    dense_indices: Optional[Iterable[int]] = None,
-    frame_index: Optional[int] = None,
-) -> Dict[str, Any]:
-    """Select one frame's predictions and park dense maps in host memory.
-
-    Dense point/confidence maps are only concatenated once the whole stream has
-    run, so leaving them on the GPU accumulates O(num_frames) VRAM and OOMs long
-    streams.  Each dense tensor is therefore detached to CPU as soon as its frame
-    finishes, and the final ``stack_preds`` concatenates in host memory.
-    """
-    skip = set(skip_state)
-    dense = set(dense_keys)
-    allowed_set = None if allowed is None else set(allowed)
-    kept: Dict[str, Any] = {}
-    for key, value in pred.items():
-        if key in skip:
-            continue
-        if allowed_set is not None and key not in allowed_set:
-            continue
-        if dense_indices is not None and key in dense and frame_index not in dense_indices:
-            continue
-        if key in dense and isinstance(value, torch.Tensor):
-            value = value.detach().to("cpu")
-        kept[key] = value
-    return kept
-
-
 class ABotReconNetwork(Pi3):
     """Checkpoint-exact ABot-Recon network for causal frame-by-frame inference.
 
@@ -1294,11 +1256,7 @@ class ABotReconNetwork(Pi3):
                 ref_h = pred["ref_hidden"]
             camera_state = pred.get("camera_state", camera_state)
             camera_state_chunks.append(self._camera_state_output_slice(pred, frame.shape[1]))
-            preds.append(
-                select_frame_outputs(
-                    pred, skip_state=("ref_hidden", "camera_state")
-                )
-            )
+            preds.append({k: v for k, v in pred.items() if k not in ("ref_hidden", "camera_state")})
 
         stacked: Dict[str, Any] = {}
         for k in preds[0].keys():
@@ -1342,8 +1300,20 @@ class ABotReconNetwork(Pi3):
         dense_indices = (
             None if dense_output_indices is None else {int(index) for index in dense_output_indices}
         )
+        dense_keys = {"points", "local_points", "conf", "global_points"}
         collect_camera_state = allowed is None or "camera_state" in allowed
         camera_only = allowed is not None and allowed.issubset({"camera_poses", "camera_state"})
+
+        def keep_pred(
+            pred: Dict[str, Any], *, skip_state: Tuple[str, ...], frame_index: int
+        ) -> Dict[str, Any]:
+            return {
+                k: v
+                for k, v in pred.items()
+                if k not in skip_state
+                and (allowed is None or k in allowed)
+                and (dense_indices is None or k not in dense_keys or frame_index in dense_indices)
+            }
 
         def stack_preds(preds: List[Dict[str, Any]]) -> Dict[str, Any]:
             if not preds:
@@ -1403,11 +1373,9 @@ class ABotReconNetwork(Pi3):
                         self._camera_state_output_slice(pred, frame.shape[1])
                     )
                 preds.append(
-                    select_frame_outputs(
+                    keep_pred(
                         pred,
                         skip_state=("ref_hidden", "camera_state"),
-                        allowed=allowed,
-                        dense_indices=dense_indices,
                         frame_index=t,
                     )
                 )
@@ -1469,11 +1437,9 @@ class ABotReconNetwork(Pi3):
             if collect_camera_state:
                 camera_state_chunks.append(self._camera_state_output_slice(pred, frame.shape[1]))
             preds.append(
-                select_frame_outputs(
+                keep_pred(
                     pred,
                     skip_state=("past_key_values", "ref_hidden", "camera_state"),
-                    allowed=allowed,
-                    dense_indices=dense_indices,
                     frame_index=frame_index,
                 )
             )

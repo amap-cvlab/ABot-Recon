@@ -31,16 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--stride", type=int, default=1)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int)
-    parser.add_argument(
-        "--max-frames",
-        type=int,
-        default=22_000,
-        help=(
-            "maximum supported stream length (RoPE positional table / paged KV capacity); "
-            "it does not truncate the input, so it must be >= the number of selected frames "
-            "(use --start/--end/--stride to select fewer frames)"
-        ),
-    )
+    parser.add_argument("--max-frames", type=int, default=22_000)
     parser.add_argument("--dense-stride", type=int, default=1)
     parser.add_argument(
         "--save-local-points", action=argparse.BooleanOptionalAction, default=True,
